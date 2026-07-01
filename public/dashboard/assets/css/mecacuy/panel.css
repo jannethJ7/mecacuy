@@ -626,7 +626,7 @@ button {
     color: var(--mc-muted);
 }
 
-/* Utilidades para dashboard */
+
 
 .mc-grid {
     display: grid;
@@ -667,9 +667,7 @@ button {
     font-weight: 600;
 }
 
-/* =========================
-   RESPONSIVE
-========================= */
+
 
 @media (max-width: 1120px) {
     body.mc-panel-body::after {
@@ -729,7 +727,7 @@ button {
         padding: 18px;
     }
 
-    /* TOPBAR MÓVIL ALINEADO */
+
     .mc-topbar {
         min-height: 56px;
         margin-bottom: 22px;
@@ -1238,7 +1236,6 @@ button {
 
 @media (max-width: 760px) {
     body.mc-panel-body .mc-pro-header,
-    body.mc-panel-body .mc-pro-hero,
     body.mc-panel-body .mc-pro-card,
     body.mc-panel-body .mc-pro-module-card,
     body.mc-panel-body .mc-pro-sensor-card,
@@ -1247,8 +1244,7 @@ button {
         padding: 16px;
     }
 
-    body.mc-panel-body .mc-pro-header h2,
-    body.mc-panel-body .mc-pro-hero h2 {
+    body.mc-panel-body .mc-pro-header h2 {
         font-size: 22px;
     }
 
@@ -1257,9 +1253,7 @@ button {
     }
 }
 
-/* =========================
-   Perfil admin: API keys ESP32
-========================= */
+
 .mc-iot-keys-section {
     overflow: hidden;
 }

@@ -130,7 +130,7 @@
 .mc-pro-hero-panel strong{
     display:block;
     margin-top:22px;
-    font-size:44px;
+    font-size:22px;
     font-weight:900;
 }
 
@@ -140,8 +140,8 @@
 }
 
 .mc-pro-orbit{
-    width:132px;
-    height:132px;
+    width:122px;
+    height:122px;
     border-radius:999px;
     border:1px dashed rgba(var(--mc-muted-rgb), .34);
     position:relative;
@@ -1067,11 +1067,7 @@
     }
 }
 
-/* =========================================================
-   1) PRO VIEWS ADAPTADO AL TEMA ACTUAL DE panel.css
-========================================================= */
-/* Las variables --mc-pro-* se definen solo en theme.css.
-   No se redefinen aqui para evitar colisiones de color. */
+
 
 body.mc-panel-body .mc-pro-page,
 body.mc-panel-body .mc-pro-page * {
@@ -1108,17 +1104,26 @@ body.mc-panel-body .mc-pro-toolbar {
     color: var(--mc-text);
 }
 
-body.mc-panel-body .mc-pro-header,
 body.mc-panel-body .mc-pro-hero {
     background:
-        radial-gradient(circle at 12% 10%, rgba(var(--mc-aqua-rgb), 0.14), transparent 32%),
-        linear-gradient(180deg, rgba(var(--mc-green-dark-rgb), 0.62), rgba(var(--mc-green-dark-rgb), 0.36));
+        linear-gradient(
+            90deg,
+            rgba(var(--mc-green-dark-rgb), 0.45) 0%,
+            rgba(var(--mc-green-dark-rgb), 0.82) 36%,
+            rgba(var(--mc-green-rgb), 0.68) 58%,
+            rgba(var(--mc-green-dark-rgb), 0.18) 100%
+        ),
+        url("/dashboard/assets/images/mecacuy/esp32-hero-modulo.jpg") right center / cover no-repeat !important;
+   border-radius: 30px;
+}
+body.mc-panel-body .mc-pro-header {
+    background: rgba(0, 0, 0, 0.779);
     border-radius: 30px;
 }
 
 body.mc-panel-body .mc-pro-header h2,
 body.mc-panel-body .mc-pro-hero h2 {
-    font-size: clamp(24px, 2.2vw, 31px);
+    font-size: clamp(20px, 2.2vw, 31px);
     line-height: 1.08;
     font-weight: 700;
     color: var(--mc-white);
@@ -1290,9 +1295,8 @@ body.mc-panel-body .mc-pro-flash {
     }
 }
 
-/* =========================================================
-   Actividad reciente real
-========================================================= */
+
+
 .mc-pro-activity-card {
     margin-top: 22px;
 }
@@ -1398,10 +1402,7 @@ body.mc-panel-body .mc-pro-flash {
 }
 
 
-/* =========================================================
-   Selects tipo dropdown redondeado + controles number
-   Nota: el <select> real se conserva para enviar el formulario.
-========================================================= */
+
 body.mc-panel-body .mc-pro-field select {
     width: 100%;
     min-height: 58px;
@@ -1438,7 +1439,8 @@ body.mc-panel-body .mc-pro-field select option {
     font-weight: 700;
 }
 
-/* Versión visual personalizada: evita el menú nativo cuadrado del navegador. */
+
+
 body.mc-panel-body .mc-pro-field select.mc-pro-select-hidden {
     position: absolute !important;
     width: 1px !important;
@@ -1464,10 +1466,7 @@ body.mc-panel-body .mc-pro-field:has(.mc-pro-select.is-open) {
     z-index: 9000;
 }
 
-/*
-   El menú se superpone sin empujar el formulario. Si no cabe hacia abajo,
-   JavaScript le agrega .is-dropup para abrirlo hacia arriba.
-*/
+
 body.mc-panel-body .mc-pro-card,
 body.mc-panel-body .mc-pro-form-card,
 body.mc-panel-body .mc-pro-form-grid,
@@ -1629,7 +1628,7 @@ body.mc-panel-body .mc-pro-select.is-disabled {
     pointer-events: none;
 }
 
-/* Number input: se mantienen los valores reales, pero se cambia el control nativo por botones integrados. */
+
 body.mc-panel-body .mc-pro-number {
     position: relative;
     width: 100%;
@@ -1709,7 +1708,8 @@ body.mc-panel-body .mc-pro-number-step:active {
 }
 
 
-/* Alertas en tabla: vista compacta para alta cantidad de eventos */
+
+
 .mc-pro-alert-table-card{
     padding:14px;
 }
@@ -1847,10 +1847,7 @@ body.mc-panel-body .mc-pro-number-step:active {
     }
 }
 
-/* =========================================================
-   Datatables compactas: lecturas y alertas
-   Estilo inspirado en tablas administrativas limpias.
-   ========================================================= */
+
 .mc-pro-filter-card{
     position:relative;
     z-index:20;
@@ -2132,7 +2129,7 @@ body.mc-panel-body .mc-pro-number-step:active {
     pointer-events:none;
 }
 
-/* La tabla nueva reemplaza el bloque anterior de alertas en cards/tabla oscura. */
+
 .mc-pro-alerts-datatable .mc-pro-alert-row td:first-child::before{display:none}
 
 @media (max-width: 1100px){
@@ -2154,7 +2151,7 @@ body.mc-panel-body .mc-pro-number-step:active {
     .mc-pro-page-links{justify-content:flex-start}
 }
 
-/* Automatización más entendible */
+
 .mc-auto-help,
 .mc-auto-flow,
 .mc-auto-mode-guide {
@@ -2668,7 +2665,7 @@ body.mc-panel-body .mc-pro-number-step:active {
     }
 }
 
-/* Días de ejecución automática */
+
 body.mc-panel-body .mc-auto-days-grid {
     grid-template-columns: repeat(7, minmax(0, 1fr));
     gap: 12px;
@@ -2786,9 +2783,6 @@ body.mc-panel-body .mc-auto-days-grid label input[type="checkbox"]:focus-visible
 
 
 
-/* ==========================================================
-   Reporte de lecturas didáctico / validación técnica
-   ========================================================== */
 .mc-report-page{
     display:flex;
     flex-direction:column;

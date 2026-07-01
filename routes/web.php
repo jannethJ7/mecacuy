@@ -146,22 +146,12 @@ Route::middleware(['auth'])->group(function () {
             ->middleware('role:admin,operador')
             ->name('alertas.cerrar');
 
-        /*
-        |--------------------------------------------------------------------------
-        | Automatización
-        |--------------------------------------------------------------------------
-        | admin: configura reglas y programaciones.
-        | operador: solo visualiza la lógica configurada y puede ejecutar pruebas.
-        | lector: sin acceso directo a esta sección.
-        |
-        | Las rutas fijas como /reglas/create deben registrarse antes que
-        | /reglas/{regla}; de lo contrario Laravel interpreta "create" como ID.
-        */
+        
         Route::prefix('automatizacion')
             ->name('automatizacion.')
             ->group(function () {
 
-                /* Reglas automáticas - rutas estáticas primero */
+                
                 Route::get('reglas/create', [ReglaAutomaticaController::class, 'create'])
                     ->middleware('role:admin')
                     ->name('reglas.create');
@@ -198,7 +188,7 @@ Route::middleware(['auth'])->group(function () {
                     ->whereNumber('regla')
                     ->name('reglas.show');
 
-                /* Programaciones - rutas estáticas primero */
+                
                 Route::get('programaciones/create', [ProgramacionController::class, 'create'])
                     ->middleware('role:admin')
                     ->name('programaciones.create');
@@ -236,12 +226,7 @@ Route::middleware(['auth'])->group(function () {
                     ->name('programaciones.show');
             });
 
-        /*
-        |--------------------------------------------------------------------------
-        | Ajustes del sistema
-        |--------------------------------------------------------------------------
-        | admin y operador pueden cambiar el modo global manual/automático.
-        */
+        
         Route::get('ajustes/sistema', [AjusteSistemaController::class, 'edit'])
             ->middleware('role:admin,operador')
             ->name('ajustes.sistema');
@@ -250,20 +235,12 @@ Route::middleware(['auth'])->group(function () {
             ->middleware('role:admin,operador')
             ->name('ajustes.sistema.update');
 
-        /*
-        |--------------------------------------------------------------------------
-        | Reportes
-        |--------------------------------------------------------------------------
-        */
+        
         Route::get('reportes/lecturas', [ReporteLecturaController::class, 'index'])
             ->name('reportes.lecturas');
     });
 
-    /*
-    |--------------------------------------------------------------------------
-    | Perfil
-    |--------------------------------------------------------------------------
-    */
+    
     Route::get('/profile', [ProfileController::class, 'edit'])
         ->name('profile.edit');
 

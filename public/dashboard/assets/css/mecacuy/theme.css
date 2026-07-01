@@ -1,24 +1,14 @@
-/* =========================================================
-   MecaCuy Theme
-   Cambia la apariencia general desde este archivo.
-   Regla: los demas CSS deben usar estas variables y NO definir
-   nuevos colores principales.
-========================================================= */
+
 :root {
-    /* =====================================================
-       1) PALETA BASE
-       Cambia principalmente estos colores.
-       Mantengo los nombres antiguos (--mc-green...) para no
-       romper las vistas ya existentes.
-    ===================================================== */
+    
     --mc-green-dark: #07090f;      /* fondo principal */
     --mc-green: #3dad4aeb;           /* azul noche / paneles */
-    --mc-green-soft: #245b72;      /* azul grisáceo / superficie */
-    --mc-graphite: #2f2f2b;        /* grafito sobrio */
-    --mc-neutral: #2c312e;         /* gris neutro */
+    --mc-green-soft: #245b72;      /* azul/ superficie */
+    --mc-graphite: #2f2f2b;        /* grafito */
+    --mc-neutral: #2c312e;         /* gris */
     --mc-aqua: #4d9de0;  
-    --mc-aqua-neutro: #b5fefb;           /* acento cobalto */
-    --mc-aqua-strong: #74b5e8;     /* acento cobalto claro */
+    --mc-aqua-neutro: #b5fefb;         
+    --mc-aqua-strong: #74b5e8;    
     --mc-gold: #4d9de0;
     --mc-aqua-dark: #2a6ba8;
     --mc-aqua-write: #3281a3;
@@ -27,11 +17,7 @@
     --mc-white2: #b6fffc;
     --mc-white: #ffffff;
 
-    /* =====================================================
-       2) RGB DE LA PALETA
-       Si cambias un color HEX arriba, actualiza su RGB aqui.
-       Se usan para transparencias: rgba(var(--mc-aqua-rgb), .2)
-    ===================================================== */
+
     --mc-green-dark-rgb: 7, 9, 15;
     --mc-green-rgb: 14, 20, 34;
     --mc-green-soft-rgb: 28, 36, 56;
@@ -45,9 +31,7 @@
     --mc-aqua-card: 15, 62, 69;
     --mc-aqua-card-rgb: 37, 74, 80;
     
-    /* =====================================================
-       3) TEXTO Y SUPERFICIES
-    ===================================================== */
+  
     --mc-text: #e8ecf4;
     --mc-muted-solid: #c8d2e4;
     --mc-muted-strong: #4dcee0a6;
@@ -71,9 +55,7 @@
     --mc-shadow: 0 28px 85px rgba(0, 0, 0, 0.34);
     --mc-shadow-soft: 0 22px 60px rgba(0, 0, 0, 0.34);
 
-    /* =====================================================
-       4) ESTADOS
-    ===================================================== */
+
     --mc-danger: #ff6b6b;
     --mc-danger-strong: #ef4444;
     --mc-danger-dark: #991b1b;
@@ -94,19 +76,13 @@
     --mc-info-rgb: 77, 157, 224;
     --mc-orange-rgb: 255, 138, 19;
 
-    /* =====================================================
-       5) ALIASES GENERALES
-    ===================================================== */
+ 
     --mc-primary: var(--mc-aqua);
     --mc-primary-dark: var(--mc-aqua-dark);
     --mc-dark: var(--mc-green);
     --mc-dark-2: var(--mc-green-soft);
 
-    /* =====================================================
-       6) TABLAS CLARAS TIPO DATATABLE
-       Cambia aqui si quieres que lecturas/alertas sean mas claras
-       u oscuras sin tocar pro-views.css.
-    ===================================================== */
+
     --mc-table-bg: rgba(247, 247, 245, 0.92);
     --mc-table-bg-soft: rgba(255, 255, 255, 0.90);
     --mc-table-text: var(--mc-graphite);
@@ -116,11 +92,7 @@
     --mc-table-hover: rgba(var(--mc-aqua-rgb), 0.12);
     --mc-table-input-bg: #ffffff;
 
-    /* =====================================================
-       7) VISTAS PRO / FORMULARIOS
-       Estas variables deben vivir SOLO aqui. No redefinirlas en
-       pro-views.css, panel.css, jaula.css, etc.
-    ===================================================== */
+   
     --mc-pro-bg: var(--mc-green-dark);
     --mc-pro-card: rgba(var(--mc-green-dark-rgb), 0.78);
     --mc-pro-card-2: rgba(var(--mc-green-rgb), 0.64);
@@ -138,9 +110,7 @@
     --mc-pro-radius: 24px;
     --mc-auto-glow: rgba(var(--mc-aqua-rgb), .18);
 
-    /* =====================================================
-       8) MEDIDAS
-    ===================================================== */
+ 
     --mc-sidebar-width: 310px;
     --mc-radius-sm: 12px;
     --mc-radius: 18px;

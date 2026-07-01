@@ -19,7 +19,7 @@
     @include('panel._partials.page-header', [
         'eyebrow' => 'Monitoreo',
         'title' => 'Sensores instalados',
-        'subtitle' => 'Consulta estado, última lectura y acceso rápido a gráficas por sensor.',
+        
         'buttonRoute' => 'panel.sensores.create',
         'buttonIcon' => 'ri-add-circle-line',
         'buttonText' => 'Nuevo sensor',

@@ -80,7 +80,7 @@ a {
 }
 
 .login-form-container {
-  position: relative; /* Necesario para posicionar el pseudo-elemento */
+  position: relative; 
   width: 100%;
   height: 100%;
   min-height: 100vh;
@@ -88,11 +88,11 @@ a {
   align-items: center;
   justify-content: center;
   flex-direction: column;
-  overflow: hidden; /* Evita que el desenfoque se salga de la pantalla */
+  overflow: hidden; 
 }
 
 
-/* 1. El fondo borroso con textura de gotas */
+
 .login-form-container::before {
   content: '';
   position: absolute;
@@ -100,20 +100,20 @@ a {
   left: 0;
   width: 100%;
   height: 100%;
-  z-index: -1; /* Se coloca detrás del contenido */
+  z-index: -1; 
   
-  /* Tu imagen de fondo original */
+  
   background-image: url("../../images/fondo.jpg");
   background-size: cover;
   background-repeat: no-repeat;
   background-position: center;
   
-  /* EL EFECTO BORROSO */
-  filter: blur(7px); /* Ajusta este valor para más o menos borrosidad */
-  transform: scale(1.1); /* Evita bordes blancos por el desenfoque */
+  
+  filter: blur(7px); 
+  transform: scale(1.1); 
 }
 
-/* Capa oscura opcional para mejorar contraste del texto */
+
 .login-form-container::after {
   content: '';
   position: absolute;
@@ -121,35 +121,35 @@ a {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.2); /* Oscurece un poco el fondo para que resalte */
+  background: rgba(0, 0, 0, 0.2); 
   z-index: -1;
 }
 .login-form-container .app-form {
   padding: 30px 30px;
-  position: relative; /* Asegura que esté encima del fondo */
+  position: relative; 
   z-index: 1;
 }
 .login-form-container .form_container {
   width: 450px;
-  max-width: 90%; /* Responsive */
+  max-width: 90%; 
   
-  /* Fondo semitransparente para el efecto cristal */
-  background-color: rgba(var(--mc-white-rgb), 0.099); /* Muy claro para ver el fondo */
+ 
+  background-color: rgba(var(--mc-white-rgb), 0.099); 
   
-  /* Efecto Glassmorphism real (borde sutil y desenfoque propio del contenedor) */
-  backdrop-filter: blur(12px); /* Desenfoca lo que hay *detrás* de este contenedor específicamente */
-  -webkit-backdrop-filter: blur(12px); /* Soporte Safari */
+ 
+  backdrop-filter: blur(12px); 
+  -webkit-backdrop-filter: blur(12px);
   
   box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
   border: 1px solid rgba(var(--mc-white-rgb), 0.18);
   border-radius: var(--bs-border-radius, 12px);
   
-  /* Ajuste de tus estilos originales */
+ 
   color: rgb(var(--mc-white, 0, 0, 0), 1);
 }
 .login-form-container .form_container h3 {
   font-size: calc(20px + 8 * (100vw - 300px) / 1620);
-  color: rgb(var(--mc-white, 0, 123, 255), 1); /* Ajustado para mayor legibilidad */
+  color: rgb(var(--mc-white, 0, 123, 255), 1); 
   font-weight: 600;
   margin-bottom: 1.5rem;
 }

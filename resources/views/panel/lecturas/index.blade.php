@@ -19,7 +19,7 @@
     @include('panel._partials.page-header', [
         'eyebrow' => 'Series temporales',
         'title' => 'Lecturas del sistema',
-        'subtitle' => 'Consulta mediciones por sensor, periodo y calidad de dato.'
+        'subtitle' => ''
     ])
 
     <section class="mc-pro-card mc-pro-filter-card">

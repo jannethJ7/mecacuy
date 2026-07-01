@@ -8,7 +8,7 @@
     <div>
         <span class="mc-pro-eyebrow">{{ $eyebrow ?? 'MECACUY PRO' }}</span>
         <h2>{{ $title ?? 'Panel' }}</h2>
-        <p>{{ $subtitle ?? 'Gestión modular e interactiva del sistema IoT.' }}</p>
+        <p>{{ $subtitle ?? '' }}</p>
     </div>
 
     @isset($buttonRoute)

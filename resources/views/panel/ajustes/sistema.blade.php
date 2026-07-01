@@ -18,7 +18,7 @@
     @include('panel._partials.page-header', [
         'eyebrow' => 'Configuración',
         'title' => 'Modo manual / automático',
-        'subtitle' => 'Define cómo se comportará el sistema y qué información recibirá el ESP32 en la sincronización.'
+        'subtitle' => ''
     ])
 
     <section class="mc-pro-mode {{ $esManual ? 'is-manual' : 'is-auto' }}">
@@ -27,8 +27,8 @@
             <strong>Modo actual: {{ $esManual ? 'MANUAL' : 'AUTOMÁTICO' }}</strong>
             <p>
                 {{ $esManual
-                    ? 'Los operadores pueden enviar comandos manuales a los actuadores desde el panel.'
-                    : 'El control manual queda bloqueado y el sistema queda preparado para trabajar con reglas automáticas.' }}
+                    ? ''
+                    : '' }}
             </p>
         </div>
 
@@ -45,7 +45,7 @@
             <div class="mc-pro-card-head">
                 <div>
                     <h3>Parámetros generales</h3>
-                    <p>Estos valores se guardan en <strong>config_sistema</strong> y se usan por el panel y la API IoT.</p>
+                    
                 </div>
             </div>
 
@@ -132,22 +132,7 @@
                 </div>
             </div>
 
-            <div class="mc-pro-code">
-                <strong>Dato enviado al ESP32 en /api/iot/v1/sync</strong>
-                <pre>{
-  "config": {
-    "modo_global": "{{ $modo }}",
-    "stale_min": {{ old('stale_min', $config['stale_min'] ?? 10) }},
-    "iot_ack_timeout_seg": {{ old('iot_ack_timeout_seg', $config['iot_ack_timeout_seg'] ?? 20) }},
-    "iot_max_intentos": {{ old('iot_max_intentos', $config['iot_max_intentos'] ?? 3) }}
-  },
-  "comando": {
-    "nonce": "...",
-    "intento": 1,
-    "max_intentos": {{ old('iot_max_intentos', $config['iot_max_intentos'] ?? 3) }}
-  }
-}</pre>
-            </div>
+            
 
             <div class="mc-pro-form-actions">
                 @if(Route::has('panel.dashboard'))

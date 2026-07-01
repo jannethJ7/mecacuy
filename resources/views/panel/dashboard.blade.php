@@ -31,12 +31,9 @@
 
     <section class="mc-pro-hero">
         <div class="mc-pro-hero-content">
-            <span class="mc-pro-eyebrow">Sistema PRO · 1 ESP32 = 1 módulo</span>
+            
             <h2>Centro de control inteligente para jaulas modulares</h2>
-            <p>
-                Vista rápida del estado operativo, variables críticas, alertas y acciones de control.
-                Diseñado para operar cómodo en computadora y celular.
-            </p>
+            
 
             <div class="mc-pro-hero-actions">
                 @if(Route::has('panel.modulos.index'))
@@ -269,7 +266,7 @@
         <div class="mc-pro-card-head">
             <div>
                 <h3>Actividad reciente del sistema</h3>
-                <p>Línea de tiempo real construida con actuaciones, comandos IoT, alertas y auditoría.</p>
+                <p>Línea de tiempo real</p>
             </div>
             @if(Route::has('panel.actuadores.index'))
                 <a href="{{ route('panel.actuadores.index') }}">Ver actuadores</a>

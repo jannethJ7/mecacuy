@@ -19,7 +19,7 @@
     @include('panel._partials.page-header', [
         'eyebrow' => 'Gestión multi-módulo',
         'title' => 'Módulos registrados',
-        'subtitle' => 'Cada ESP32 se controla como una unidad independiente: sensores, actuadores, reglas y comunicación.',
+        'subtitle' => 'Cada ESP32 se controla como una unidad independiente',
         'buttonRoute' => 'panel.modulos.create',
         'buttonIcon' => 'ri-add-circle-line',
         'buttonText' => 'Nuevo módulo',

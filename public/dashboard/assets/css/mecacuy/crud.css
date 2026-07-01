@@ -1,6 +1,6 @@
 @import url("./theme.css");
 
-/* CRUD Mecacuy: añade este archivo al head del panel o copia al final de panel.css */
+
 .mc-toolbar {
     display: flex;
     align-items: center;

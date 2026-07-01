@@ -20,7 +20,7 @@
     @include('panel._partials.page-header', [
         'eyebrow' => 'Control',
         'title' => 'Actuadores del sistema',
-        'subtitle' => 'Ventilador, calefactor, agua y dosificador de croquetas por módulo.',
+        'subtitle' => '',
         'buttonRoute' => 'panel.actuadores.create',
         'buttonIcon' => 'ri-add-circle-line',
         'buttonText' => 'Nuevo actuador',
@@ -33,8 +33,8 @@
             <strong>Modo actual: {{ strtoupper($modo) }}</strong>
             <p>
                 {{ $modo === 'manual'
-                    ? 'Puedes usar controles manuales si el endpoint está habilitado.'
-                    : 'El control manual está bloqueado mientras el sistema opera en automático.' }}
+                    ? ''
+                    : '' }}
             </p>
         </div>
         @if(Route::has('panel.ajustes.sistema'))

@@ -39,7 +39,7 @@
         <section class="mc-pro-card mc-pro-alert-eval">
             <div>
                 <strong>Evaluación automática</strong>
-                <p>Revisa temperatura, humedad, calidad de aire, sensores sin datos, módulos offline y comandos fallidos.</p>
+                
             </div>
             <form method="POST" action="{{ route('panel.alertas.evaluar') }}">
                 @csrf

@@ -8,7 +8,7 @@
     @include('panel._partials.flash')
     <div class="mc-pro-card mc-pro-form-card">
         <h3>Datos del módulo</h3>
-        <p>Completa la identificación del ESP32. Luego podrás asociar sensores, actuadores y reglas.</p>
+        
         <form method="POST" action="{{ route('panel.modulos.store') }}">
             @include('panel.modulos._form', ['modulo' => new \App\Models\Modulo()])
         </form>

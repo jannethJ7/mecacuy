@@ -55,12 +55,7 @@
         </select>
     </div>
 
-    <div class="mc-pro-field mc-pro-field-wide">
-        <label for="field_meta_json">Meta JSON opcional</label>
-        <textarea id="field_meta_json" name="meta_json" rows="3" placeholder='{"driver":"dht","dht_type":"DHT11"}'>{{ old('meta_json', isset($sensor) && $sensor->meta ? json_encode($sensor->meta, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) : '') }}</textarea>
-        <small>Opcional. Sirve para calibración, tipo de sensor o comportamiento especial del firmware.</small>
-        @error('meta_json') <small>{{ $message }}</small> @enderror
-    </div>
+    
 </div>
 
 <div class="mc-pro-form-actions">
