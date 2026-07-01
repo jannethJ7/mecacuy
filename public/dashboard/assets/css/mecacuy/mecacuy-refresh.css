@@ -1,0 +1,466 @@
+/* =========================================================
+   MECACUY REFRESH - Tema formal azul noche y grafito
+   Cargar después de panel.css y pro-views.css
+========================================================= */
+
+@import url("./theme.css");
+
+
+
+
+
+
+/* Corrección pequeña: padding: 1 estaba incompleto */
+.mc-topbar {
+    padding: 0;
+}
+
+
+
+/* Logo respirando mejor */
+.mc-sidebar-brand {
+    padding-bottom: 22px;
+}
+
+/* Header / hero de cada vista */
+.mc-pro-header,
+.mc-pro-hero {
+    background:
+        radial-gradient(circle at 88% 18%, rgba(var(--mc-aqua-rgb), 0.20), transparent 28%),
+        linear-gradient(
+            135deg,
+            rgba(var(--mc-green-rgb), 0.92),
+            rgba(var(--mc-green-dark-rgb), 0.90)
+        ) !important;
+}
+/* HERO DE MÓDULOS CON IMAGEN DESDE CSS */
+.mc-hero-modulos {
+    position: relative;
+    overflow: hidden;
+
+    background:
+        linear-gradient(
+            90deg,
+            rgba(var(--mc-green-dark-rgb), 0.45) 0%,
+            rgba(var(--mc-green-dark-rgb), 0.82) 36%,
+            rgba(var(--mc-green-rgb), 0.68) 58%,
+            rgba(var(--mc-green-dark-rgb), 0.18) 100%
+        ),
+        url("/dashboard/assets/images/mecacuy/esp32-hero.jpg") right center / cover no-repeat !important;
+
+    border: 1px solid rgba(var(--mc-aqua-rgb), 0.24) !important;
+    box-shadow: 0 22px 60px rgba(0, 0, 0, 0.42) !important;
+}
+.mc-hero-modulos > div:first-child {
+    position: relative;
+    z-index: 2;
+    max-width: 560px;
+}
+
+/* Títulos */
+.mc-title-box h1,
+.mc-pro-header h2,
+.mc-pro-hero h2,
+.mc-pro-card-head h3,
+.mc-pro-module-card h3,
+.mc-pro-sensor-card h3,
+.mc-pro-actuator-card h3 {
+    color: var(--mc-text) !important;
+    letter-spacing: -0.02em;
+}
+
+.mc-title-box p,
+.mc-pro-header p,
+.mc-pro-hero p,
+.mc-pro-card-head p,
+.mc-pro-module-card p,
+.mc-pro-sensor-card p,
+.mc-pro-actuator-card p {
+    color: rgba(var(--mc-white-rgb), 1) !important;
+}
+
+/* Eyebrow: GESTIÓN MULTI-MÓDULO */
+.mc-pro-eyebrow {
+    color: var(--mc-muted-strong) !important;
+    text-shadow: 0 0 18px rgba(var(--mc-aqua-rgb), 0.25);
+}
+
+/* Buscador y mini datos */
+.mc-pro-search,
+.mc-pro-mini-grid > div,
+.mc-pro-list-row,
+.mc-pro-field input,
+.mc-pro-field select,
+.mc-pro-field textarea {
+    background: rgba(var(--mc-green-dark-rgb), 0.58) !important;
+    border-color: rgba(var(--mc-white-rgb), 0.12) !important;
+}
+
+.mc-pro-search:focus-within,
+.mc-pro-field input:focus,
+.mc-pro-field select:focus,
+.mc-pro-field textarea:focus {
+    border-color: rgba(var(--mc-aqua-rgb), 0.58) !important;
+    box-shadow: 0 0 0 4px rgba(var(--mc-aqua-rgb), 0.12) !important;
+}
+
+/* Chips de filtros */
+.mc-pro-chip {
+    background: rgba(var(--mc-white-rgb), 0.08) !important;
+    color: rgba(var(--mc-white-rgb), 0.86) !important;
+    border-color: rgba(var(--mc-white-rgb), 0.13) !important;
+}
+
+.mc-pro-chip:hover {
+    background: rgba(var(--mc-aqua-rgb), 0.12) !important;
+    border-color: rgba(var(--mc-aqua-rgb), 0.32) !important;
+}
+
+.mc-pro-chip.is-active {
+    background: var(--mc-orange) !important;
+    color: var(--mc-text) !important;
+    border-color: rgba(250, 127, 8, 0.55) !important;
+}
+
+/* Íconos de cards */
+.mc-pro-module-icon,
+.mc-pro-sensor-icon,
+.mc-pro-actuator-icon,
+.mc-pro-kpi > span,
+.mc-pro-orbit span {
+    background: rgba(var(--mc-aqua-rgb), 0.14) !important;
+    border-color: rgba(var(--mc-aqua-rgb), 0.32) !important;
+    color: var(--mc-white2) !important;
+    box-shadow: 0 12px 28px rgba(var(--mc-aqua-rgb), 0.16);
+}
+
+/* Hover de cards */
+.mc-pro-module-card:hover,
+.mc-pro-sensor-card:hover,
+.mc-pro-actuator-card:hover,
+.mc-pro-list-row:hover {
+    transform: translateY(-3px);
+    border-color: rgba(var(--mc-aqua-rgb), 0.46) !important;
+    background:
+        linear-gradient(
+            160deg,
+            rgba(var(--mc-green-rgb), 0.92),
+            rgba(var(--mc-green-dark-rgb), 0.92)
+        ) !important;
+}
+
+/* Badges */
+.mc-pro-badge.is-success {
+    color: var(--mc-muted-solid) !important;
+    background: rgba(var(--mc-aqua-rgb), 0.14) !important;
+    border-color: rgba(var(--mc-aqua-rgb), 0.34) !important;
+}
+
+.mc-pro-badge.is-danger {
+    color: var(--mc-danger-soft) !important;
+    background: rgba(255, 92, 92, 0.15) !important;
+    border-color: rgba(255, 92, 92, 0.34) !important;
+}
+
+.mc-pro-badge.is-warning {
+    color: var(--mc-muted-solid) !important;
+    background: rgba(246, 166, 35, 0.15) !important;
+    border-color: rgba(246, 166, 35, 0.36) !important;
+}
+
+.mc-pro-badge.is-info {
+    color: var(--mc-muted-solid) !important;
+    background: rgba(var(--mc-aqua-rgb), 0.14) !important;
+    border-color: rgba(var(--mc-aqua-rgb), 0.34) !important;
+}
+
+.mc-pro-badge.is-muted {
+    color: rgba(var(--mc-white-rgb), 0.78) !important;
+    background: rgba(var(--mc-white-rgb), 0.10) !important;
+    border-color: rgba(var(--mc-muted-rgb), 0.18) !important;
+}
+
+/* Estados tipo puntito */
+.mc-pro-status.is-online {
+    background: var(--mc-aqua) !important;
+    box-shadow: 0 0 0 6px rgba(var(--mc-aqua-rgb), 0.14), 0 0 18px rgba(var(--mc-aqua-rgb), 0.30);
+}
+
+.mc-pro-status.is-offline {
+    background: var(--mc-danger) !important;
+    box-shadow: 0 0 0 6px rgba(255, 92, 92, 0.14), 0 0 18px rgba(255, 92, 92, 0.22);
+}
+
+/* Botón ver detalles */
+.mc-pro-card-actions .mc-pro-btn,
+.mc-pro-row-actions .mc-pro-btn {
+    border-color: rgba(var(--mc-aqua-rgb), 0.28) !important;
+}
+
+.mc-pro-card-actions .mc-pro-btn:hover,
+.mc-pro-row-actions .mc-pro-btn:hover {
+    background: rgba(var(--mc-aqua-rgb), 0.14) !important;
+    border-color: rgba(var(--mc-aqua-rgb), 0.48) !important;
+}
+
+/* Dropdown usuario/notificaciones */
+.mc-dropdown-menu {
+    background: rgba(var(--mc-green-dark-rgb), 0.97);
+    border-color: rgba(var(--mc-aqua-rgb), 0.20);
+}
+
+.mc-notification-item:hover,
+.mc-dropdown-link:hover {
+    background: rgba(var(--mc-aqua-rgb), 0.12);
+}
+
+/* Responsive: que no se vea apretado */
+@media (max-width: 760px) {
+    .mc-app {
+        padding: 16px;
+    }
+
+    .mc-topbar {
+        gap: 10px;
+    }
+
+    .mc-title-box h1 {
+        font-size: 21px;
+    }
+
+    .mc-pro-toolbar {
+        gap: 12px;
+    }
+
+    .mc-pro-toolbar-actions {
+        display: flex;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+    }
+
+    .mc-pro-chip {
+        flex: 0 0 auto;
+    }
+}
+@media (max-width: 760px) {
+    .mc-hero-modulos {
+        background:
+            linear-gradient(
+                180deg,
+                rgba(var(--mc-green-dark-rgb), 0.96),
+                rgba(var(--mc-green-dark-rgb), 0.84)
+            ),
+            url("/dashboard/assets/images/mecacuy/esp32-hero.jpg") center / cover no-repeat !important;
+    }
+}
+/* =========================================================
+   CORRECCIÓN FORMULARIOS / SELECT / DATETIME - MECACUY
+========================================================= */
+
+body.mc-panel-body .mc-pro-form-card {
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+}
+
+body.mc-panel-body .mc-pro-form-grid {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+}
+
+body.mc-panel-body .mc-pro-field {
+    min-width: 0;
+    width: 100%;
+}
+
+body.mc-panel-body .mc-pro-field label {
+    color: rgba(var(--mc-white-rgb), 0.82) !important;
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 5px;
+}
+
+/* Inputs, selects y fechas */
+body.mc-panel-body .mc-pro-field input,
+/*body.mc-panel-body .mc-pro-field select,*/
+body.mc-panel-body .mc-pro-field textarea {
+    width: 100%;
+    max-width: 100%;
+    min-height: 54px;
+    border-radius: 22px;
+    border: 1px solid rgba(var(--mc-aqua-rgb), 0.26) !important;
+    background: rgba(var(--mc-green-dark-rgb), 0.78) !important;
+    color: var(--mc-text) !important;
+    padding: 0 18px;
+    font-size: 14px;
+    font-weight: 400;
+    outline: none;
+    box-shadow: inset 0 1px 0 rgba(var(--mc-white-rgb), 0.04);
+    transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
+}
+
+
+body.mc-panel-body .mc-pro-field textarea {
+    padding: 14px 18px;
+    min-height: 120px;
+}
+
+body.mc-panel-body .mc-pro-field input::placeholder,
+body.mc-panel-body .mc-pro-field textarea::placeholder {
+    color: rgba(var(--mc-white-rgb), 0.55);
+}
+
+body.mc-panel-body .mc-pro-field input:focus,
+body.mc-panel-body .mc-pro-field select:focus,
+body.mc-panel-body .mc-pro-field textarea:focus {
+    border-color: rgba(var(--mc-aqua-rgb), 0.9) !important;
+    box-shadow:
+        0 0 0 4px rgba(var(--mc-aqua-rgb), 0.14),
+        0 0 22px rgba(var(--mc-aqua-rgb), 0.16);
+    background: rgba(4, 28, 21, 0.88) !important;
+}
+
+/* Select con flecha más limpia */
+body.mc-panel-body .mc-pro-field select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    padding-right: 46px;
+    cursor: pointer;
+    background-image:
+        linear-gradient(45deg, transparent 50%, var(--mc-muted-solid) 50%),
+        linear-gradient(135deg, var(--mc-muted-solid) 50%, transparent 50%);
+    background-position:
+        calc(100% - 24px) 50%,
+        calc(100% - 18px) 50%;
+    background-size:
+        6px 6px,
+        6px 6px;
+    background-repeat: no-repeat;
+}
+
+body.mc-panel-body .mc-pro-field select option {
+    background: var(--mc-green-dark);
+    color: var(--mc-text);
+}
+
+/* Datetime local */
+
+body.mc-panel-body .mc-pro-field input[type="date"],
+body.mc-panel-body .mc-pro-field input[type="time"] {
+    color-scheme: dark;
+    padding-right: 16px;
+}
+body.mc-panel-body .mc-pro-field input[type="datetime-local"]{
+    color-scheme: write;
+    padding-right: 16px;
+}
+
+body.mc-panel-body .mc-pro-field input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+body.mc-panel-body .mc-pro-field input[type="date"]::-webkit-calendar-picker-indicator,
+body.mc-panel-body .mc-pro-field input[type="time"]::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    filter: invert(1) brightness(1.4);
+    opacity: .85;
+}
+
+/* Formulario de filtros */
+body.mc-panel-body .mc-pro-filter-form {
+    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(220px, 1.2fr) minmax(190px, 1fr) minmax(190px, 1fr) auto;
+    gap: 16px;
+    align-items: end;
+}
+
+body.mc-panel-body .mc-pro-filter-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: max-content;
+}
+
+body.mc-panel-body .mc-pro-filter-actions .mc-pro-btn {
+    min-height: 54px;
+    border-radius: 20px;
+    white-space: nowrap;
+}
+
+/* Tarjetas */
+body.mc-panel-body .mc-pro-card {
+    overflow: hidden;
+}
+
+body.mc-panel-body .mc-pro-card-head {
+    gap: 14px;
+}
+
+/* Responsive tablet */
+@media (max-width: 992px) {
+    body.mc-panel-body .mc-pro-filter-form {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    body.mc-panel-body .mc-pro-filter-actions {
+        grid-column: 1 / -1;
+        width: 100%;
+    }
+
+    body.mc-panel-body .mc-pro-filter-actions .mc-pro-btn {
+        flex: 1;
+    }
+}
+
+/* Responsive celular */
+@media (max-width: 576px) {
+    body.mc-panel-body .mc-pro-page {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: hidden;
+    }
+
+    body.mc-panel-body .mc-pro-form-grid,
+    body.mc-panel-body .mc-pro-filter-form {
+        grid-template-columns: 1fr;
+        gap: 14px;
+    }
+
+    body.mc-panel-body .mc-pro-field input,
+    body.mc-panel-body .mc-pro-field select,
+    body.mc-panel-body .mc-pro-field textarea {
+        min-height: 52px;
+        border-radius: 18px;
+        font-size: 14px;
+        padding-left: 15px;
+        padding-right: 15px;
+    }
+
+    body.mc-panel-body .mc-pro-field select {
+        padding-right: 42px;
+    }
+
+    body.mc-panel-body .mc-pro-filter-actions {
+        width: 100%;
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 10px;
+        min-width: 0;
+    }
+
+    body.mc-panel-body .mc-pro-filter-actions .mc-pro-btn {
+        width: 100%;
+        min-height: 50px;
+    }
+
+    body.mc-panel-body .mc-pro-card {
+        padding: 16px;
+        border-radius: 22px;
+    }
+
+    body.mc-panel-body .mc-pro-card-head {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}

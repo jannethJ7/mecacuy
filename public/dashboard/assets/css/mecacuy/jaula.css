@@ -1,0 +1,1313 @@
+@import url("./theme.css");
+
+
+
+/* =========================================================
+   BASE DE LA PÁGINA
+========================================================= */
+
+.jaula-page {
+    color: var(--mc-text);
+}
+
+.jaula-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 20px;
+    margin-bottom: 24px;
+}
+
+.jaula-header h1 {
+    font-size: 25px;
+    font-weight: 600;
+    margin: 0 0 5px;
+    color: var(--mc-text);
+}
+
+.jaula-status-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 14px;
+    color: rgba(var(--mc-white-rgb), 0.78);
+    font-weight: 600;
+}
+
+.status-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 999px;
+    display: inline-block;
+    flex-shrink: 0;
+}
+
+.status-dot.online {
+    background: var(--mc-green);
+    box-shadow: 0 0 14px rgba(var(--mc-aqua-rgb), 0.7);
+}
+
+.status-dot.offline {
+    background: var(--mc-danger);
+    box-shadow: 0 0 14px rgba(228, 90, 90, 0.6);
+}
+
+.mode-pill,
+.contact-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 14px;
+    border-radius: 999px;
+    background: rgba(var(--mc-green-rgb), 0.67);
+    border: 1px solid rgba(var(--mc-aqua-rgb), 0.18);
+}
+
+.mode-pill {
+    color: var(--mc-aqua);
+}
+
+.jaula-header-actions {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.btn-back,
+.btn-icon {
+    border: 1px solid rgba(var(--mc-white-rgb), 0.22);
+    color: var(--mc-text);
+    background: rgba(var(--mc-green-soft-rgb), 0.80);
+    border-radius: 12px;
+    padding: 12px 18px;
+    text-decoration: none;
+    font-weight: 700;
+    transition: 0.18s ease;
+}
+
+.btn-back:hover,
+.btn-icon:hover {
+    background: rgba(var(--mc-white-rgb), 0.12);
+    color: var(--mc-text);
+}
+
+.btn-icon {
+    width: 46px;
+    height: 46px;
+    padding: 0;
+    display: grid;
+    place-items: center;
+}
+
+
+/* =========================================================
+   LAYOUT GENERAL
+========================================================= */
+
+.jaula-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 18px;
+}
+
+.jaula-card {
+    background: linear-gradient(145deg, rgba(var(--mc-green-dark-rgb), 0.94), rgba(var(--mc-green-rgb), 0.78));
+    border: 1px solid rgba(var(--mc-white-rgb), 0.08);
+    border-radius: 18px;
+    box-shadow: 0 18px 45px rgba(0, 0, 0, 0.25);
+}
+
+.jaula-visual-card {
+    padding: 13px;
+}
+
+.card-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 18px;
+}
+
+.card-title-row h2,
+.quick-controls-card h2,
+.activity-card h2 {
+    font-size: 15px;
+    font-weight: 600;
+    margin: 0;
+    color: var(--mc-text);
+}
+
+.small-info {
+    color: rgba(var(--mc-white-rgb), 0.55);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+
+/* =========================================================
+   VISTA RESPONSIVE DE JAULA
+   ---------------------------------------------------------
+   .jaula-visual: tarjeta externa con scroll si el celular es pequeño
+   .jaula-stage: mantiene proporción 16:9 y carga la imagen
+========================================================= */
+
+.jaula-visual {
+    width: 100%;
+    padding: 6px;
+    border-radius: 18px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    background: rgba(var(--mc-green-rgb), 0.82);
+    border: 1px solid rgba(var(--mc-white-rgb), 0.08);
+}
+
+/* Oculta un poco la barra horizontal en navegadores compatibles */
+.jaula-visual::-webkit-scrollbar {
+    height: 8px;
+}
+
+.jaula-visual::-webkit-scrollbar-track {
+    background: rgba(var(--mc-white-rgb), 0.05);
+    border-radius: 999px;
+}
+
+.jaula-visual::-webkit-scrollbar-thumb {
+    background: rgba(var(--mc-aqua-rgb), 0.45);
+    border-radius: 999px;
+}
+
+.jaula-stage {
+    position: relative;
+    width: 100%;
+    min-width: auto;
+    aspect-ratio: 16 / 9;
+    border-radius: 16px;
+    overflow: hidden;
+
+    background-image:
+        linear-gradient(
+            145deg,
+            rgba(var(--mc-green-rgb), 0.08),
+            rgba(var(--mc-green-rgb), 0.40)
+        ),
+        url("/dashboard/assets/images/mecacuy/jaula-mecacuy.png");
+
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-color: var(--mc-green-dark);
+
+    box-shadow:
+        inset 0 0 80px rgba(0, 0, 0, 0.45),
+        0 18px 45px rgba(0, 0, 0, 0.30);
+}
+
+
+/* =========================================================
+   PINES SOBRE LA JAULA
+========================================================= */
+
+.jaula-pin {
+    position: absolute;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+}
+
+.pin-card {
+    display: flex;
+    align-items: center;
+    gap: clamp(4px, 0.5vw, 8px);
+    min-width: clamp(100px, 10vw, 150px);
+    padding: clamp(5px, 0.6vw, 10px) clamp(8px, 0.8vw, 12px);
+    border-radius: clamp(8px, 0.9vw, 12px);
+    background: rgba(var(--mc-green-rgb), 0.92);
+    border: 1px solid rgba(var(--mc-aqua-rgb), 0.85);
+    box-shadow:
+        0 0 0 1px rgba(var(--mc-aqua-rgb), 0.08),
+        0 12px 26px rgba(0, 0, 0, 0.32);
+}
+
+.pin-card strong {
+    display: block;
+    font-size: clamp(11px, 0.95vw, 13px);
+    line-height: 1.1;
+    font-weight: 600;
+    color: var(--mc-text);
+}
+
+.pin-card small {
+    display: block;
+    margin-top: 3px;
+    font-size: clamp(9px, 0.78vw, 12px);
+    line-height: 1.1;
+    color: rgba(var(--mc-white-rgb), 0.72);
+}
+
+.pin-icon {
+    width: clamp(18px, 1.6vw, 26px);
+    height: clamp(18px, 1.6vw, 26px);
+    display: block;
+    flex-shrink: 0;
+    background: currentColor;
+
+    -webkit-mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    -webkit-mask-size: contain;
+
+    mask-repeat: no-repeat;
+    mask-position: center;
+    mask-size: contain;
+}
+
+.pin-line {
+    display: block;
+    background: var(--mc-aqua);
+    box-shadow: 0 0 12px rgba(var(--mc-aqua-rgb), 0.75);
+    flex-shrink: 0;
+}
+
+.pin-line.horizontal {
+    width: clamp(30px, 1vw, 72px);
+    height: 1px;
+}
+
+.pin-line.vertical {
+    width: 2px;
+    height: clamp(24px, 1vw, 48px);
+}
+
+.pin-dot {
+    width: clamp(9px, 0.9vw, 13px);
+    height: clamp(9px, 0.9vw, 13px);
+    display: block;
+    border-radius: 50%;
+    background: var(--mc-muted-solid);
+    border: 2px solid rgba(var(--mc-white-rgb), 0.75);
+    box-shadow:
+        0 0 0 5px rgba(var(--mc-aqua-rgb), 0.18),
+        0 0 18px rgba(var(--mc-aqua-rgb), 0.95);
+    flex-shrink: 0;
+}
+
+
+/* =========================================================
+   POSICIONES RESPONSIVE EN PORCENTAJE
+========================================================= */
+
+/* Sensor ambiental, arriba centro */
+.pin-top {
+    top: 1%;
+    left: 50%;
+    transform: translateX(-50%);
+    flex-direction: column;
+}
+
+.pin-sensor .pin-dot {
+    margin-top: -1px;
+}
+
+/* Resistencia, abajo centro */
+.pin-bottom {
+    left: 50%;
+    bottom: 5%;
+    transform: translateX(-50%);
+    flex-direction: column-reverse;
+}
+
+.pin-resistencia .pin-dot {
+    margin-bottom: -8px;
+}
+
+/* Elementos lado izquierdo */
+.pin-left {
+    left: 0%;
+    transform: translateY(-50%);
+}
+
+.pin-left .pin-dot {
+    margin-left: -5px;
+}
+
+/* Elementos lado derecho */
+.pin-right {
+    right: 0%;
+    transform: translateY(-50%);
+}
+
+.pin-right .pin-dot {
+    margin-right: -1px;
+}
+
+/* Ajusta estos porcentajes si quieres mover los pines */
+.pin-tolva {
+    top: 40%;
+}
+
+.pin-tornillo {
+    top: 61%;
+}
+
+.pin-bebedero {
+    top: 40%;
+}
+
+.pin-ventilador {
+    top: 75%;
+}
+
+
+/* =========================================================
+   ICONOS DE LOS PINES
+========================================================= */
+
+.icon-thermo {
+    color: var(--mc-aqua);
+    -webkit-mask-image: url("/dashboard/assets/images/mecacuy/icons/device_thermostat.svg");
+    mask-image: url("/dashboard/assets/images/mecacuy/icons/device_thermostat.svg");
+}
+
+.icon-wheat {
+    color: var(--mc-muted-strong);
+    -webkit-mask-image: url("/dashboard/assets/images/mecacuy/icons/wheat.svg");
+    mask-image: url("/dashboard/assets/images/mecacuy/icons/wheat.svg");
+}
+
+.icon-gear {
+    color: var(--mc-aqua);
+    -webkit-mask-image: url("/dashboard/assets/images/mecacuy/icons/mode.svg");
+    mask-image: url("/dashboard/assets/images/mecacuy/icons/mode.svg");
+}
+
+.icon-water {
+    color: var(--mc-aqua);
+    -webkit-mask-image: url("/dashboard/assets/images/mecacuy/icons/water_drop.svg");
+    mask-image: url("/dashboard/assets/images/mecacuy/icons/water_drop.svg");
+}
+
+.icon-fan {
+    color: var(--mc-aqua);
+    -webkit-mask-image: url("/dashboard/assets/images/mecacuy/icons/mode.svg");
+    mask-image: url("/dashboard/assets/images/mecacuy/icons/mode.svg");
+}
+
+.icon-heat {
+    color: var(--mc-orange);
+    -webkit-mask-image: url("/dashboard/assets/images/mecacuy/icons/nest.svg");
+    mask-image: url("/dashboard/assets/images/mecacuy/icons/nest.svg");
+}
+
+
+/* =========================================================
+   CONTROLES RÁPIDOS
+========================================================= */
+
+.quick-controls-card {
+    padding: 15px;
+    background: linear-gradient(145deg, rgba(42, 44, 42, 0.95), rgba(13, 28, 21, 0.90));
+}
+
+.quick-controls-card h2 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 18px;
+}
+
+.quick-control {
+    display: grid;
+    grid-template-columns: 38px 1fr auto;
+    align-items: center;
+    gap: 10px;
+    padding: 6px;
+    border-radius: 12px;
+    border: 1px solid rgba(var(--mc-white-rgb), 0.08);
+    background: rgba(var(--mc-white-rgb), 0.04);
+    margin-bottom: 10px;
+}
+
+.quick-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+}
+
+.quick-icon::before {
+    content: "";
+    width: 22px;
+    height: 22px;
+    display: block;
+    background: currentColor;
+
+    -webkit-mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    -webkit-mask-size: contain;
+
+    mask-repeat: no-repeat;
+    mask-position: center;
+    mask-size: contain;
+}
+
+/* Alimentación */
+.quick-icon.food {
+    color: var(--mc-muted-strong);
+    background: rgba(242, 184, 75, 0.15);
+}
+
+.quick-icon.food::before {
+    -webkit-mask-image: url("/dashboard/assets/images/mecacuy/icons/wheat.svg");
+    mask-image: url("/dashboard/assets/images/mecacuy/icons/wheat.svg");
+}
+
+/* Agua */
+.quick-icon.water {
+    color: var(--mc-aqua);
+    background: rgba(var(--mc-aqua-rgb), 0.14);
+}
+
+.quick-icon.water::before {
+    -webkit-mask-image: url("/dashboard/assets/images/mecacuy/icons/fluid.svg");
+    mask-image: url("/dashboard/assets/images/mecacuy/icons/fluid.svg");
+}
+
+/* Ventilación */
+.quick-icon.fan {
+    color: var(--mc-aqua);
+    background: rgba(111, 226, 118, 0.15);
+}
+
+.quick-icon.fan::before {
+    -webkit-mask-image: url("/dashboard/assets/images/mecacuy/icons/mode.svg");
+    mask-image: url("/dashboard/assets/images/mecacuy/icons/mode.svg");
+}
+
+/* Calefacción */
+.quick-icon.heat {
+    color: var(--mc-orange);
+    background: rgba(255, 155, 53, 0.15);
+}
+
+.quick-icon.heat::before {
+    -webkit-mask-image: url("/dashboard/assets/images/mecacuy/icons/nest.svg");
+    mask-image: url("/dashboard/assets/images/mecacuy/icons/nest.svg");
+}
+
+.quick-info strong,
+.quick-info span {
+    display: block;
+}
+
+.quick-info strong {
+    color: var(--mc-text);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.quick-info span {
+    color: rgba(var(--mc-white-rgb), 0.62);
+    font-size: 12px;
+    margin-top: 1px;
+}
+
+.quick-btn {
+    border: 0;
+    color: var(--mc-text);
+    padding: 8px 12px;
+    border-radius: 9px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.18s ease;
+}
+
+.quick-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    filter: brightness(1.08);
+}
+
+.quick-btn.green {
+    background: var(--mc-green-soft);
+}
+
+.quick-btn.blue {
+    background: var(--mc-green-soft);
+}
+
+.quick-btn.orange {
+    background: var(--mc-muted-strong);
+}
+
+.quick-btn.dark {
+    background: rgba(var(--mc-white-rgb), 0.12);
+}
+
+.quick-btn.disabled,
+.quick-btn:disabled {
+    background: rgba(var(--mc-white-rgb), 0.12);
+    color: rgba(var(--mc-white-rgb), 0.45);
+    cursor: not-allowed;
+}
+
+.dual-buttons {
+    display: flex;
+    gap: 7px;
+}
+
+.mode-box {
+    margin-top: 10px;
+    padding: 9px;
+    border-radius: 15px;
+    background: rgba(var(--mc-white-rgb), 0.04);
+    border: 1px solid rgba(var(--mc-white-rgb), 0.08);
+}
+
+.mode-box span {
+    display: block;
+    margin-bottom: 12px;
+    font-weight: 600;
+    color: var(--mc-text);
+}
+
+.mode-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.mode-buttons button,
+.mode-buttons a {
+    padding: 5px;
+    border: 0;
+    border-radius: 10px;
+    color: var(--mc-text);
+    font-weight: 600;
+    background: rgba(var(--mc-white-rgb), 0.12);
+    cursor: pointer;
+    text-align: center;
+    text-decoration: none;
+}
+
+.mode-buttons button.active,
+.mode-buttons a.active {
+    background: var(--mc-green-soft);
+}
+
+
+/* =========================================================
+   TARJETAS DE SENSORES
+========================================================= */
+
+.sensor-strip {
+    grid-column: 1 / 2;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.sensor-mini-card {
+    display: flex;
+    gap: 13px;
+    align-items: center;
+    padding: 17px;
+    border-radius: 15px;
+    background: rgba(0, 0, 0, 0.60);
+    border: 1px solid rgba(var(--mc-white-rgb), 0.08);
+}
+
+.sensor-mini-card i {
+    font-size: 32px;
+    color: var(--mc-aqua);
+}
+
+.sensor-mini-card strong,
+.sensor-mini-card span,
+.sensor-mini-card small {
+    display: block;
+}
+
+.sensor-mini-card strong {
+    color: var(--mc-text);
+}
+
+.sensor-mini-card span {
+    color: rgba(var(--mc-white-rgb), 0.72);
+}
+
+.sensor-mini-card small {
+    color: var(--mc-aqua);
+    margin-top: 4px;
+}
+
+
+/* =========================================================
+   GRÁFICAS
+========================================================= */
+
+.charts-card {
+    grid-column: 1 / 3;
+    padding: 20px;
+}
+
+.charts-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.chart-box {
+    border-radius: 15px;
+    padding: 16px;
+    background: rgba(var(--mc-white-rgb), 0.045);
+    border: 1px solid rgba(var(--mc-white-rgb), 0.08);
+}
+
+.chart-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.chart-head span {
+    color: rgba(var(--mc-white-rgb), 0.80);
+    font-weight: 700;
+}
+
+.chart-head strong {
+    color: var(--mc-aqua);
+}
+
+.live-chart {
+    height: 120px;
+    display: flex;
+    align-items: flex-end;
+    gap: 5px;
+    padding: 12px;
+    border-radius: 12px;
+    background:
+        linear-gradient(rgba(var(--mc-white-rgb), 0.08) 1px, transparent 1px),
+        rgba(0, 0, 0, 0.18);
+    background-size: 100% 30px, 100% 100%;
+}
+
+.live-chart-bar {
+    flex: 1;
+    min-width: 4px;
+    border-radius: 999px 999px 4px 4px;
+    background: rgba(var(--mc-aqua-rgb), 0.78);
+    box-shadow: 0 -6px 18px rgba(var(--mc-aqua-rgb), 0.22);
+}
+
+.chart-empty,
+.activity-empty {
+    min-height: 120px;
+    display: grid;
+    place-items: center;
+    text-align: center;
+    gap: 8px;
+    color: rgba(var(--mc-white-rgb), 0.58);
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.18);
+    border: 1px dashed rgba(var(--mc-white-rgb), 0.12);
+    font-weight: 700;
+}
+
+.chart-empty i,
+.activity-empty i {
+    font-size: 28px;
+    color: rgba(var(--mc-aqua-rgb), 0.8);
+}
+
+
+/* =========================================================
+   ACTIVIDAD RECIENTE
+========================================================= */
+
+.activity-card {
+    grid-column: 2 / 3;
+    padding: 22px;
+}
+
+.activity-item {
+    display: flex;
+    gap: 13px;
+    align-items: center;
+    padding: 13px 0;
+    color: rgba(var(--mc-white-rgb), 0.78);
+}
+
+.activity-item i {
+    width: 36px;
+    height: 36px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: rgba(var(--mc-aqua-rgb), 0.12);
+    color: var(--mc-aqua);
+    font-size: 20px;
+    flex-shrink: 0;
+}
+
+.activity-item span small {
+    display: block;
+    margin-top: 4px;
+    color: rgba(var(--mc-white-rgb), 0.50);
+    font-size: 12px;
+}
+
+.activity-link {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    margin-top: 14px;
+    padding: 13px;
+    border-radius: 12px;
+    text-decoration: none;
+    color: var(--mc-text);
+    border: 1px solid rgba(var(--mc-white-rgb), 0.13);
+    background: rgba(var(--mc-white-rgb), 0.05);
+    font-weight: 800;
+}
+
+
+/* =========================================================
+   RESPONSIVE GENERAL
+========================================================= */
+
+@media (max-width: 1200px) {
+    .jaula-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .quick-controls-card,
+    .activity-card,
+    .sensor-strip,
+    .charts-card {
+        grid-column: auto;
+    }
+
+    .sensor-strip,
+    .charts-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 768px) {
+    .jaula-header {
+        flex-direction: column;
+    }
+
+    .jaula-header h1 {
+        font-size: 26px;
+    }
+
+    .jaula-header-actions {
+        width: 100%;
+    }
+
+    .btn-back {
+        flex: 1;
+        text-align: center;
+    }
+
+    .jaula-visual {
+        padding: 10px;
+    }
+
+    /*.jaula-stage {
+        min-width: 700px;
+    }*/
+
+    .pin-card {
+        min-width: 120px;
+    }
+
+    .pin-line.horizontal {
+        width: 28px;
+    }
+
+    .pin-line.vertical {
+        height: 28px;
+    }
+
+    .sensor-strip,
+    .charts-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .quick-control {
+        grid-template-columns: 40px 1fr;
+    }
+
+    .quick-control .quick-btn,
+    .dual-buttons {
+        grid-column: 1 / 3;
+    }
+
+    .dual-buttons {
+        width: 100%;
+    }
+
+    .dual-buttons .quick-btn {
+        flex: 1;
+    }
+}
+
+@media (max-width: 480px) {
+    .jaula-visual-card,
+    .quick-controls-card,
+    .charts-card,
+    .activity-card {
+        padding: 16px;
+    }
+
+    .card-title-row {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+   /* .jaula-stage {
+        min-width: 660px;
+    }*/
+}
+/* =========================================================
+   CORRECCIÓN MÓVIL - VISTA DE JAULA
+========================================================= */
+
+@media (max-width: 768px) {
+    .jaula-page {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: hidden;
+    }
+
+    .jaula-layout {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+
+    .jaula-header {
+        flex-direction: column;
+        gap: 14px;
+    }
+
+    .jaula-header h1 {
+        font-size: 22px;
+        line-height: 1.2;
+    }
+
+    .jaula-status-row {
+        gap: 8px;
+        font-size: 11px;
+    }
+
+    .mode-pill,
+    .contact-pill {
+        padding: 6px 10px;
+        font-size: 11px;
+    }
+
+    .jaula-header-actions {
+        width: 100%;
+    }
+
+    .btn-back {
+        width: 100%;
+        display: block;
+        text-align: center;
+    }
+
+    .jaula-visual-card,
+    .quick-controls-card,
+    .charts-card,
+    .activity-card {
+        width: 100%;
+        max-width: 100%;
+        padding: 12px;
+    }
+
+    .jaula-visual {
+        width: 100%;
+        padding: 8px;
+        overflow-x: hidden;
+    }
+
+    .jaula-stage {
+        width: 100%;
+        min-width: 0;
+        aspect-ratio: 4 / 3;
+    }
+
+    .pin-card {
+        min-width: auto;
+        max-width: 82px;
+        padding: 4px 5px;
+        gap: 3px;
+        border-radius: 7px;
+    }
+
+    .pin-card strong {
+        font-size: 7px;
+        line-height: 1;
+    }
+
+    .pin-card small {
+        font-size: 6px;
+        line-height: 1;
+        margin-top: 1px;
+    }
+
+    .pin-icon {
+        width: 12px;
+        height: 12px;
+    }
+
+    .pin-dot {
+        width: 7px;
+        height: 7px;
+        border-width: 1px;
+        box-shadow:
+            0 0 0 3px rgba(var(--mc-aqua-rgb), 0.16),
+            0 0 10px rgba(var(--mc-aqua-rgb), 0.8);
+    }
+
+    .pin-line.horizontal {
+        width: 14px;
+    }
+
+    .pin-line.vertical {
+        height: 14px;
+    }
+
+    .pin-left {
+        left: 0%;
+    }
+
+    .pin-right {
+        right: 0%;
+    }
+
+    .pin-top {
+        top: 2%;
+    }
+
+    .pin-bottom {
+        bottom: 4%;
+    }
+
+    .pin-tolva {
+        top: 40%;
+    }
+
+    .pin-bebedero {
+        top: 39%;
+    }
+
+    .pin-ventilador {
+        top: 75%;
+    }
+
+    .quick-control {
+        grid-template-columns: 38px 1fr;
+    }
+
+    .quick-control .quick-btn,
+    .dual-buttons {
+        grid-column: 1 / 3;
+        width: 100%;
+    }
+
+    .dual-buttons .quick-btn {
+        flex: 1;
+    }
+}
+
+/* =========================================================
+   BOTON IOS
+========================================================= */
+
+.quick-control {
+    grid-template-columns: 48px minmax(0, 1fr) auto;
+    overflow: hidden;
+}
+
+.quick-info {
+    min-width: 0;
+}
+
+.quick-info strong,
+.quick-info span {
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+.quick-btn {
+    white-space: nowrap;
+}
+
+.toggle-pack {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    min-width: 90px;
+}
+
+.tgl {
+    display: none;
+}
+
+.tgl-btn {
+    position: relative;
+    display: block;
+    width: 64px;
+    height: 34px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.tgl-ios + .tgl-btn {
+    background: rgba(var(--mc-white-rgb), 0.18);
+    border-radius: 2em;
+    padding: 2px;
+    transition: all .4s ease;
+    border: 1px solid rgba(var(--mc-white-rgb), 0.18);
+}
+
+.tgl-ios + .tgl-btn:after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 28px;
+    height: 28px;
+    border-radius: 2em;
+    background: var(--mc-white);
+    transition:
+        left .3s cubic-bezier(0.175, 0.885, 0.320, 1.275),
+        padding .3s ease,
+        margin .3s ease;
+    box-shadow:
+        0 0 0 1px rgba(0,0,0,.1),
+        0 4px 0 rgba(0,0,0,.08);
+}
+
+.tgl-ios + .tgl-btn:hover:after {
+    will-change: padding;
+}
+
+.tgl-ios + .tgl-btn:active {
+    box-shadow: inset 0 0 0 2em rgba(var(--mc-white-rgb), 0.18);
+}
+
+.tgl-ios + .tgl-btn:active:after {
+    padding-right: .8em;
+}
+
+.tgl-ios:checked + .tgl-btn {
+    background: var(--mc-green-soft);
+}
+
+.tgl-ios:checked + .tgl-btn:after {
+    left: calc(100% - 30px);
+}
+
+.tgl-ios:checked + .tgl-btn:active {
+    box-shadow: none;
+}
+
+.tgl-ios:checked + .tgl-btn:active:after {
+    margin-left: -.8em;
+}
+
+.tgl-ios:disabled + .tgl-btn {
+    opacity: .45;
+    cursor: not-allowed;
+}
+
+.toggle-text {
+    width: 32px;
+    font-size: 11px;
+    font-weight: 700;
+    color: rgba(var(--mc-white-rgb), .75);
+}
+
+/* Móvil */
+@media (max-width: 480px) {
+    .quick-control {
+        grid-template-columns: 42px minmax(0, 1fr) auto;
+        gap: 8px;
+        padding: 10px;
+    }
+
+    .tgl-btn {
+        width: 56px;
+        height: 30px;
+    }
+
+    .tgl-ios + .tgl-btn:after {
+        width: 24px;
+        height: 24px;
+    }
+
+    .tgl-ios:checked + .tgl-btn:after {
+        left: calc(100% - 26px);
+    }
+
+    .toggle-pack {
+        min-width: 72px;
+        gap: 5px;
+    }
+
+    .toggle-text {
+        display: none;
+    }
+}
+/* Actividad real del módulo: actuaciones + comandos + alertas + auditoría */
+.activity-item {
+    border-bottom: 1px solid rgba(var(--mc-white-rgb), 0.07);
+}
+
+.activity-item:last-of-type {
+    border-bottom: 0;
+}
+
+.activity-item i[class^="ri-"],
+.activity-item i[class*=" ri-"] {
+    width: 36px;
+    height: 36px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: rgba(var(--mc-aqua-rgb), 0.12);
+    color: var(--mc-aqua);
+    font-size: 20px;
+    flex-shrink: 0;
+}
+
+.activity-item.activity-advertencia i {
+    background: rgba(245, 158, 11, 0.14);
+    color: var(--mc-muted-strong);
+}
+
+.activity-item.activity-critico i {
+    background: rgba(239, 68, 68, 0.14);
+    color: var(--mc-danger-soft-2);
+}
+
+/* Controles seguros: alimentación temporizada y llenado por nivel */
+.quick-control-column {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+}
+
+.quick-row-main {
+    display: grid;
+    grid-template-columns: 48px minmax(0, 1fr);
+    gap: 4px;
+    align-items: center;
+}
+
+.quick-info small {
+    display: block;
+    margin-top: 2px;
+    color: rgba(var(--mc-white-rgb), 0.72);
+    font-size: 0.78rem;
+}
+
+.quick-segment-group {
+    display: flex;
+    width: 100%;
+    margin-top: 10px;
+    overflow: hidden;
+    border: 1px solid rgba(var(--mc-aqua-rgb), 0.35);
+    border-radius: 14px;
+    background: rgba(var(--mc-green-dark-rgb), 0.42);
+    box-shadow: inset 0 1px 0 rgba(var(--mc-white-rgb), 0.06);
+}
+
+.quick-segment {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 28px;
+    border: 0;
+    border-right: 1px solid rgba(var(--mc-white-rgb), 0.14);
+    background: rgba(var(--mc-white-rgb), 0.055);
+    color: rgba(var(--mc-white-rgb), 0.88);
+    padding: 7px 5px;
+    font-size: 0.84rem;
+    font-weight: 850;
+    line-height: 1;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background .16s ease, color .16s ease, box-shadow .16s ease, transform .16s ease;
+}
+
+.quick-segment:last-child {
+    border-right: 0;
+}
+
+.quick-segment:hover:not(:disabled),
+.quick-segment:focus-visible:not(:disabled) {
+    background: rgba(var(--mc-aqua-rgb), 0.26);
+    color: var(--mc-white);
+    box-shadow: inset 0 -3px 0 rgba(var(--mc-aqua-rgb), 0.55);
+    outline: 0;
+}
+
+.quick-segment:active:not(:disabled) {
+    transform: translateY(1px);
+}
+
+.quick-segment:disabled {
+    opacity: .58;
+    cursor: wait;
+}
+
+.quick-segment-stop {
+    flex: 1.25 1 0;
+    background: rgba(239, 68, 68, 0.14);
+    color: var(--mc-danger-soft);
+}
+
+.quick-segment-stop:hover:not(:disabled),
+.quick-segment-stop:focus-visible:not(:disabled) {
+    background: rgba(239, 68, 68, 0.30);
+    color: var(--mc-white);
+    box-shadow: inset 0 -3px 0 rgba(248, 113, 113, 0.75);
+}
+
+.quick-segment-water .quick-segment {
+    font-size: 0.78rem;
+    padding-left: 5px;
+    padding-right: 5px;
+}
+
+.quick-safe-note {
+    display: block;
+    margin-top: 7px;
+    color: rgba(var(--mc-white-rgb), 0.66);
+    font-size: 0.73rem;
+    line-height: 1.2;
+}
+
+.quick-safe-note.compact {
+    white-space: normal;
+}
+
+@media (max-width: 420px) {
+    .quick-segment {
+        font-size: 0.76rem;
+        min-height: 36px;
+        padding-left: 5px;
+        padding-right: 5px;
+    }
+
+    .quick-segment-water .quick-segment-stop {
+        font-size: 0.72rem;
+    }
+}

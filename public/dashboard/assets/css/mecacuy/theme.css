@@ -1,0 +1,149 @@
+/* =========================================================
+   MecaCuy Theme
+   Cambia la apariencia general desde este archivo.
+   Regla: los demas CSS deben usar estas variables y NO definir
+   nuevos colores principales.
+========================================================= */
+:root {
+    /* =====================================================
+       1) PALETA BASE
+       Cambia principalmente estos colores.
+       Mantengo los nombres antiguos (--mc-green...) para no
+       romper las vistas ya existentes.
+    ===================================================== */
+    --mc-green-dark: #07090f;      /* fondo principal */
+    --mc-green: #3dad4aeb;           /* azul noche / paneles */
+    --mc-green-soft: #245b72;      /* azul grisáceo / superficie */
+    --mc-graphite: #2f2f2b;        /* grafito sobrio */
+    --mc-neutral: #2c312e;         /* gris neutro */
+    --mc-aqua: #4d9de0;  
+    --mc-aqua-neutro: #b5fefb;           /* acento cobalto */
+    --mc-aqua-strong: #74b5e8;     /* acento cobalto claro */
+    --mc-gold: #4d9de0;
+    --mc-aqua-dark: #2a6ba8;
+    --mc-aqua-write: #3281a3;
+    --mc-yellow: #ffdb96; 
+    --mc-yellow-claro: #c9a86a; 
+    --mc-white2: #b6fffc;
+    --mc-white: #ffffff;
+
+    /* =====================================================
+       2) RGB DE LA PALETA
+       Si cambias un color HEX arriba, actualiza su RGB aqui.
+       Se usan para transparencias: rgba(var(--mc-aqua-rgb), .2)
+    ===================================================== */
+    --mc-green-dark-rgb: 7, 9, 15;
+    --mc-green-rgb: 14, 20, 34;
+    --mc-green-soft-rgb: 28, 36, 56;
+    --mc-graphite-rgb: 47, 47, 43;
+    --mc-neutral-rgb: 82, 84, 83;
+    --mc-aqua-rgb: 36, 91, 114;
+    --mc-aqua-strong-rgb: 116, 181, 232;
+    --mc-aqua-dark-rgb: 42, 107, 168;
+    --mc-white-rgb: 232, 236, 244;
+    --mc-white2-rgb: 215, 228, 238;
+    --mc-aqua-card: 15, 62, 69;
+    --mc-aqua-card-rgb: 37, 74, 80;
+    
+    /* =====================================================
+       3) TEXTO Y SUPERFICIES
+    ===================================================== */
+    --mc-text: #e8ecf4;
+    --mc-muted-solid: #c8d2e4;
+    --mc-muted-strong: #4dcee0a6;
+    --mc-muted-button: #844e09;
+    --mc-green-button: #3dad4aeb;
+    --mc-muted-rgb: 32, 171, 250;
+    --mc-muted-strong-rgb: 154, 168, 182;
+    --mc-muted-button-rgb: 89, 70, 42;
+    --mc-green-button-rgb: 143, 115, 62;
+    --mc-muted: rgba(var(--mc-muted-rgb), 0.72);
+
+    --mc-glass-dark: rgba(var(--mc-green-rgb), 0.78);
+    --mc-glass-soft: rgba(255, 255, 255, 0.08);
+    --mc-glass-hover: rgba(255, 255, 255, 0.13);
+    --mc-card-dark: rgba(var(--mc-green-dark-rgb), 0.82);
+    --mc-card-blue: rgba(var(--mc-green-rgb), 0.72);
+
+    --mc-border: rgba(var(--mc-muted-rgb), 0.18);
+    --mc-border-strong: rgba(var(--mc-muted-rgb), 0.30);
+    --mc-border-accent: rgba(var(--mc-aqua-rgb), 0.34);
+    --mc-shadow: 0 28px 85px rgba(0, 0, 0, 0.34);
+    --mc-shadow-soft: 0 22px 60px rgba(0, 0, 0, 0.34);
+
+    /* =====================================================
+       4) ESTADOS
+    ===================================================== */
+    --mc-danger: #ff6b6b;
+    --mc-danger-strong: #ef4444;
+    --mc-danger-dark: #991b1b;
+    --mc-danger-soft: #fecaca;
+    --mc-danger-soft-2: #fca5a5;
+    --mc-warning: #f59e0b;
+    --mc-warning-soft: #f2c230;
+    --mc-success: #4d9de0;
+    --mc-success-strong: #0d3713e1;
+    --mc-info: #4d9de0;
+    --mc-info-dark: #0a4174;
+    --mc-orange: #e8661596;
+    --mc-danger-rgb: 255, 107, 107;
+    --mc-danger-strong-rgb: 239, 68, 68;
+    --mc-warning-rgb: 245, 158, 11;
+    --mc-success-rgb: 77, 157, 224;
+    --mc-success-strong-rgb: 166, 206, 33;
+    --mc-info-rgb: 77, 157, 224;
+    --mc-orange-rgb: 255, 138, 19;
+
+    /* =====================================================
+       5) ALIASES GENERALES
+    ===================================================== */
+    --mc-primary: var(--mc-aqua);
+    --mc-primary-dark: var(--mc-aqua-dark);
+    --mc-dark: var(--mc-green);
+    --mc-dark-2: var(--mc-green-soft);
+
+    /* =====================================================
+       6) TABLAS CLARAS TIPO DATATABLE
+       Cambia aqui si quieres que lecturas/alertas sean mas claras
+       u oscuras sin tocar pro-views.css.
+    ===================================================== */
+    --mc-table-bg: rgba(247, 247, 245, 0.92);
+    --mc-table-bg-soft: rgba(255, 255, 255, 0.90);
+    --mc-table-text: var(--mc-graphite);
+    --mc-table-muted: var(--mc-neutral);
+    --mc-table-line: rgba(var(--mc-graphite-rgb), 0.16);
+    --mc-table-line-strong: rgba(var(--mc-graphite-rgb), 0.22);
+    --mc-table-hover: rgba(var(--mc-aqua-rgb), 0.12);
+    --mc-table-input-bg: #ffffff;
+
+    /* =====================================================
+       7) VISTAS PRO / FORMULARIOS
+       Estas variables deben vivir SOLO aqui. No redefinirlas en
+       pro-views.css, panel.css, jaula.css, etc.
+    ===================================================== */
+    --mc-pro-bg: var(--mc-green-dark);
+    --mc-pro-card: rgba(var(--mc-green-dark-rgb), 0.78);
+    --mc-pro-card-2: rgba(var(--mc-green-rgb), 0.64);
+    --mc-pro-line: var(--mc-border);
+    --mc-pro-line-2: var(--mc-border-strong);
+    --mc-pro-text: var(--mc-text);
+    --mc-pro-muted: var(--mc-muted-solid);
+    --mc-pro-soft: rgba(var(--mc-white-rgb), 0.86);
+    --mc-pro-primary: var(--mc-aqua);
+    --mc-pro-primary-2: var(--mc-green-soft);
+    --mc-pro-info: var(--mc-info);
+    --mc-pro-warning: var(--mc-warning);
+    --mc-pro-danger: var(--mc-danger-strong);
+    --mc-pro-shadow: var(--mc-shadow-soft);
+    --mc-pro-radius: 24px;
+    --mc-auto-glow: rgba(var(--mc-aqua-rgb), .18);
+
+    /* =====================================================
+       8) MEDIDAS
+    ===================================================== */
+    --mc-sidebar-width: 310px;
+    --mc-radius-sm: 12px;
+    --mc-radius: 18px;
+    --mc-radius-lg: 24px;
+    --mc-radius-xl: 32px;
+}
