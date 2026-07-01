@@ -1,0 +1,1130 @@
+#include <WiFi.h>
+#include <HTTPClient.h>
+#include <ArduinoJson.h>
+#include <Preferences.h>
+#include <DHT.h>
+#include <time.h>
+#include <math.h>
+
+const char* WIFI_SSID = "REDENTOR";
+const char* WIFI_PASS = "JoSs.0926.";
+
+const char* BASE_URL   = "https://mecacuy-production.up.railway.app";
+const char* MODULO_UID = "ESP32-MOD-001";
+const char* DEVICE_KEY = "mc_s7eyc6J9gDT3SGmzO2szGsz686H0II6Nq5IHwQRWMEyVuUO7Vi3GnGo2";
+const char* FW_VERSION = "mecacuy-esp32-dinamico-1.2.1";
+
+String URL_SYNC     = String(BASE_URL) + "/api/iot/v1/sync";
+String URL_LECTURAS = String(BASE_URL) + "/api/iot/v1/lecturas";
+String URL_ACK      = String(BASE_URL) + "/api/iot/v1/ack";
+
+const char* NTP1 = "pool.ntp.org";
+const char* NTP2 = "time.google.com";
+const long GMT_OFFSET_SEC = -4 * 3600;
+const int DAYLIGHT_OFFSET_SEC = 0;
+bool timeReady = false;
+
+#define MAX_SENSORS 16
+#define MAX_ACTUATORS 16
+const size_t JSON_SYNC_CAPACITY = 32768;
+
+const unsigned long WIFI_RETRY_MS      = 5000;
+const unsigned long SYNC_INTERVAL_MS   = 2500;
+const unsigned long POST_INTERVAL_MS   = 10000;
+const unsigned long SENSOR_INTERVAL_MS = 2000;
+
+unsigned long lastWifiTryMs = 0;
+unsigned long lastSyncMs = 0;
+unsigned long lastPostMs = 0;
+unsigned long lastSensorMs = 0;
+
+struct SensorCfg {
+  String codigo;
+  String tipo;
+  String unidad;
+  String driver;
+  int gpio;
+  bool activo;
+  int dhtType;
+  float adcMin;
+  float adcMax;
+  float valMin;
+  float valMax;
+  float valor;
+  int raw;
+};
+
+struct ActuatorCfg {
+  String codigo;
+  String tipo;
+  int gpio;
+  bool activo;
+  bool invertido;
+  int current;
+};
+
+SensorCfg sensors[MAX_SENSORS];
+int sensorCount = 0;
+
+ActuatorCfg actuators[MAX_ACTUATORS];
+int actuatorCount = 0;
+
+String modoGlobal = "manual";
+Preferences prefs;
+
+DHT* dht = nullptr;
+int dhtPin = -1;
+int dhtType = DHT11;
+bool dhtReady = false;
+float lastDhtTemp = NAN;
+float lastDhtHr = NAN;
+
+struct FeedActionState {
+  bool active = false;
+  bool temporizado = true;   // true = 10s/20s/50s, false = ON continuo
+  String nonce = "";
+  String actuatorCodigo = "";
+  unsigned long deadlineMs = 0;
+  unsigned long lastStepUs = 0;
+  bool stepLevel = false;
+  bool stepperMode = false;
+};
+
+struct WaterFillState {
+  bool active = false;
+  String nonce = "";
+  String actuatorCodigo = "";
+  int targetPct = 0;
+  unsigned long deadlineMs = 0;
+};
+
+FeedActionState feedAction;
+WaterFillState waterFill;
+
+const unsigned long STEPPER_HALF_PERIOD_US = 3000;
+
+float clampf(float x, float a, float b) {
+  if (x < a) return a;
+  if (x > b) return b;
+  return x;
+}
+
+float mapFloat(float x, float inMin, float inMax, float outMin, float outMax) {
+  if (fabs(inMax - inMin) < 0.0001f) return outMin;
+  return (x - inMin) * (outMax - outMin) / (inMax - inMin) + outMin;
+}
+
+float jsonFloat(JsonVariant v, float def) {
+  if (v.isNull()) return def;
+  if (v.is<float>() || v.is<double>() || v.is<int>() || v.is<long>()) return v.as<float>();
+  String s = v.as<String>();
+  if (s.length() == 0) return def;
+  return s.toFloat();
+}
+
+String lowerStr(String s) {
+  s.toLowerCase();
+  return s;
+}
+
+bool validGpio(int gpio) {
+  return gpio >= 0 && gpio <= 39;
+}
+
+bool isOutputCapable(int gpio) {
+  if (!validGpio(gpio)) return false;
+  if (gpio >= 34 && gpio <= 39) return false;
+  if (gpio >= 6 && gpio <= 11) return false;
+  return true;
+}
+
+String nowIso() {
+  if (!timeReady) return "";
+  struct tm tinfo;
+  if (!getLocalTime(&tinfo, 50)) return "";
+  char buf[32];
+  strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", &tinfo);
+  return String(buf);
+}
+
+ActuatorCfg* findActuator(const String& codigo) {
+  for (int i = 0; i < actuatorCount; i++) {
+    if (actuators[i].codigo == codigo) return &actuators[i];
+  }
+  return nullptr;
+}
+
+SensorCfg* findSensor(const String& codigo) {
+  for (int i = 0; i < sensorCount; i++) {
+    if (sensors[i].codigo == codigo) return &sensors[i];
+  }
+  return nullptr;
+}
+
+void initNTP() {
+  configTime(GMT_OFFSET_SEC, DAYLIGHT_OFFSET_SEC, NTP1, NTP2);
+
+  struct tm tinfo;
+  for (int i = 0; i < 20; i++) {
+    if (getLocalTime(&tinfo, 200)) {
+      timeReady = true;
+      Serial.println("NTP OK");
+      return;
+    }
+    delay(200);
+  }
+
+  timeReady = false;
+  Serial.println("NTP no disponible");
+}
+
+void ensureWiFi() {
+  if (WiFi.status() == WL_CONNECTED) return;
+
+  unsigned long nowMs = millis();
+  if (nowMs - lastWifiTryMs < WIFI_RETRY_MS) return;
+  lastWifiTryMs = nowMs;
+
+  Serial.println("Reintentando WiFi...");
+  WiFi.disconnect();
+  WiFi.begin(WIFI_SSID, WIFI_PASS);
+}
+
+void addIotHeaders(HTTPClient& http) {
+  http.addHeader("Accept", "application/json");
+  http.addHeader("X-MODULO-UID", MODULO_UID);
+  http.addHeader("X-DEVICE-KEY", DEVICE_KEY);
+  http.addHeader("X-FW", FW_VERSION);
+
+  if (WiFi.status() == WL_CONNECTED) {
+    http.addHeader("X-RSSI", String(WiFi.RSSI()));
+  }
+}
+
+bool httpGET(const String& url, String& out) {
+  if (WiFi.status() != WL_CONNECTED) return false;
+
+  HTTPClient http;
+  http.setTimeout(5000);
+  http.useHTTP10(true);
+  http.begin(url);
+  addIotHeaders(http);
+
+  int code = http.GET();
+  if (code > 0) out = http.getString();
+
+  Serial.print("GET ");
+  Serial.print(url);
+  Serial.print(" -> ");
+  Serial.println(code);
+
+  if (code > 0) Serial.println(out);
+
+  http.end();
+  return code == 200;
+}
+
+bool httpPOSTJson(const String& url, const String& body, String& out) {
+  if (WiFi.status() != WL_CONNECTED) return false;
+
+  HTTPClient http;
+  http.setTimeout(5000);
+  http.useHTTP10(true);
+  http.begin(url);
+  http.addHeader("Content-Type", "application/json");
+  addIotHeaders(http);
+
+  int code = http.POST(body);
+  if (code > 0) out = http.getString();
+
+  Serial.print("POST ");
+  Serial.print(url);
+  Serial.print(" -> ");
+  Serial.println(code);
+
+  if (code > 0) Serial.println(out);
+
+  http.end();
+  return code == 200 || code == 201;
+}
+
+bool saveSyncJson(const String& json) {
+  prefs.begin("mecacuy", false);
+  bool ok = prefs.putString("sync_json", json) > 0;
+  prefs.end();
+  return ok;
+}
+
+String loadSyncJson() {
+  prefs.begin("mecacuy", true);
+  String s = prefs.getString("sync_json", "");
+  prefs.end();
+  return s;
+}
+
+bool saveConfigOnlyFromSync(const String& json) {
+  DynamicJsonDocument src(JSON_SYNC_CAPACITY);
+  DeserializationError err = deserializeJson(src, json);
+
+  if (err) {
+    Serial.print("No se pudo preparar cache: ");
+    Serial.println(err.c_str());
+    return false;
+  }
+
+  DynamicJsonDocument cache(JSON_SYNC_CAPACITY);
+  cache["ok"] = true;
+  cache["config"] = src["config"];
+  cache["sensores"] = src["sensores"];
+  cache["actuadores"] = src["actuadores"];
+
+  String compact;
+  serializeJson(cache, compact);
+
+  Serial.print("Cache bytes=");
+  Serial.println(compact.length());
+
+  return saveSyncJson(compact);
+}
+
+String inferDriver(const String& codigo, const String& tipo, JsonObject meta) {
+  if (!meta.isNull() && meta["driver"].is<const char*>()) {
+    return lowerStr(String((const char*)meta["driver"]));
+  }
+
+  String c = lowerStr(codigo);
+  String t = lowerStr(tipo);
+
+  if (c == "s_temp" || c == "s_hr") return "dht";
+  if (c == "s_air" || t.indexOf("aire") >= 0) return "adc_ppm";
+
+  if (c.indexOf("s_nivel_") >= 0 ||
+      c.indexOf("nivel_25") >= 0 ||
+      c.indexOf("nivel_50") >= 0 ||
+      c.indexOf("nivel_75") >= 0 ||
+      c.indexOf("nivel_100") >= 0) {
+    return "digital_level";
+  }
+
+  if (t.indexOf("nivel") >= 0) return "digital_level";
+
+  return "digital";
+}
+
+int parseDhtType(JsonObject meta) {
+  String value = "DHT11";
+
+  if (!meta.isNull()) {
+    if (meta["dht_type"].is<const char*>()) value = String((const char*)meta["dht_type"]);
+    if (meta["dht_tipo"].is<const char*>()) value = String((const char*)meta["dht_tipo"]);
+  }
+
+  value.toUpperCase();
+
+  if (value == "DHT11") return DHT11;
+  return DHT11;
+}
+
+void configureDhtFromSensors() {
+  int selectedPin = -1;
+  int selectedType = DHT11;
+
+  for (int i = 0; i < sensorCount; i++) {
+    if (!sensors[i].activo) continue;
+    if (sensors[i].driver != "dht") continue;
+    if (!validGpio(sensors[i].gpio)) continue;
+
+    if (selectedPin < 0) {
+      selectedPin = sensors[i].gpio;
+      selectedType = sensors[i].dhtType;
+    } else if (selectedPin != sensors[i].gpio) {
+      Serial.println("ADVERTENCIA: S_TEMP y S_HR usan GPIO diferente.");
+    }
+  }
+
+  if (selectedPin < 0) {
+    if (dht != nullptr) {
+      delete dht;
+      dht = nullptr;
+    }
+    dhtPin = -1;
+    dhtReady = false;
+    return;
+  }
+
+  if (dht == nullptr || dhtPin != selectedPin || dhtType != selectedType) {
+    if (dht != nullptr) {
+      delete dht;
+      dht = nullptr;
+    }
+
+    dhtPin = selectedPin;
+    dhtType = selectedType;
+    dht = new DHT(dhtPin, dhtType);
+    dht->begin();
+    dhtReady = true;
+    delay(1200);
+
+    Serial.print("DHT inicializado en GPIO ");
+    Serial.print(dhtPin);
+    Serial.print(" tipo ");
+    Serial.println(dhtType == DHT11 ? "DHT11" : "DHT11");
+  }
+}
+
+bool parseSyncJson(const String& resp) {
+  DynamicJsonDocument doc(JSON_SYNC_CAPACITY);
+  DeserializationError err = deserializeJson(doc, resp);
+
+  if (err) {
+    Serial.print("Error parse sync: ");
+    Serial.println(err.c_str());
+    return false;
+  }
+
+  JsonObject cfg = doc["config"];
+  modoGlobal = cfg["modo_global"] | "manual";
+
+  ActuatorCfg oldActuators[MAX_ACTUATORS];
+  int oldCount = actuatorCount;
+  for (int i = 0; i < oldCount; i++) oldActuators[i] = actuators[i];
+
+  sensorCount = 0;
+
+  if (doc["sensores"].is<JsonArray>()) {
+    for (JsonObject s : doc["sensores"].as<JsonArray>()) {
+      if (sensorCount >= MAX_SENSORS) break;
+
+      StaticJsonDocument<512> metaDoc;
+       
+      JsonObject meta;
+
+        if (s["meta"].is<JsonObject>()) {
+        meta = s["meta"].as<JsonObject>();
+        } else if (s["meta"].is<const char*>()) {
+        DeserializationError metaErr = deserializeJson(metaDoc, s["meta"].as<const char*>());
+
+        if (!metaErr) {
+            meta = metaDoc.as<JsonObject>();
+        } else {
+            meta = JsonObject();
+        }
+        } else if (s["meta"].is<String>()) {
+        DeserializationError metaErr = deserializeJson(metaDoc, s["meta"].as<String>());
+
+        if (!metaErr) {
+            meta = metaDoc.as<JsonObject>();
+        } else {
+            meta = JsonObject();
+        }
+        } else {
+        meta = JsonObject();
+        }
+
+        SensorCfg& S = sensors[sensorCount];
+        S.codigo = s["codigo"] | "";
+        S.tipo = s["tipo"] | "";
+        S.unidad = s["unidad"] | "";
+        S.gpio = s["gpio_pin"].isNull() ? -1 : (int)s["gpio_pin"];
+        S.activo = s["activo"] | true;
+        S.driver = inferDriver(S.codigo, S.tipo, meta);
+        S.dhtType = parseDhtType(meta);
+        S.valor = NAN;
+        S.raw = -1;
+
+      if (S.driver == "adc_ppm") {
+        S.adcMin = jsonFloat(meta["adc_min"], 800);
+        S.adcMax = jsonFloat(meta["adc_max"], 3000);
+        S.valMin = jsonFloat(meta["val_min"], 400);
+        S.valMax = jsonFloat(meta["val_max"], 2000);
+      } else {
+        S.adcMin = jsonFloat(meta["adc_min"], 3500);
+        S.adcMax = jsonFloat(meta["adc_max"], 800);
+        S.valMin = jsonFloat(meta["val_min"], 0);
+        S.valMax = jsonFloat(meta["val_max"], 100);
+      }
+
+      if (S.activo && validGpio(S.gpio) && S.driver != "dht") {
+        pinMode(S.gpio, INPUT);
+      }
+
+      Serial.print("Sensor ");
+      Serial.print(S.codigo);
+      Serial.print(" driver=");
+      Serial.print(S.driver);
+      Serial.print(" gpio=");
+      Serial.println(S.gpio);
+
+      sensorCount++;
+    }
+  }
+
+  actuatorCount = 0;
+
+  if (doc["actuadores"].is<JsonArray>()) {
+    for (JsonObject a : doc["actuadores"].as<JsonArray>()) {
+      if (actuatorCount >= MAX_ACTUATORS) break;
+
+      String codigo = a["codigo"] | "";
+      int gpio = a["gpio_pin"].isNull() ? -1 : (int)a["gpio_pin"];
+      bool invertido = a["invertido"] | false;
+
+      ActuatorCfg& A = actuators[actuatorCount];
+      A.codigo = codigo;
+      A.tipo = a["tipo"] | "";
+      A.gpio = gpio;
+      A.activo = true;
+      A.invertido = invertido;
+      A.current = -1;
+
+      for (int j = 0; j < oldCount; j++) {
+        if (oldActuators[j].codigo == codigo &&
+            oldActuators[j].gpio == gpio &&
+            oldActuators[j].invertido == invertido) {
+          A.current = oldActuators[j].current;
+          break;
+        }
+      }
+
+      if (isOutputCapable(A.gpio)) {
+        pinMode(A.gpio, OUTPUT);
+      } else {
+        Serial.print("ADVERTENCIA: actuador ");
+        Serial.print(A.codigo);
+        Serial.print(" GPIO no válido para salida: ");
+        Serial.println(A.gpio);
+      }
+
+      Serial.print("Actuador ");
+      Serial.print(A.codigo);
+      Serial.print(" gpio=");
+      Serial.print(A.gpio);
+      Serial.print(" invertido=");
+      Serial.println(A.invertido ? "SI" : "NO");
+
+      actuatorCount++;
+    }
+  }
+
+  configureDhtFromSensors();
+
+  Serial.print("Configuración aplicada: sensores=");
+  Serial.print(sensorCount);
+  Serial.print(" actuadores=");
+  Serial.print(actuatorCount);
+  Serial.print(" modo=");
+  Serial.println(modoGlobal);
+
+  return true;
+}
+
+void applyActuator(ActuatorCfg& a, bool on) {
+  if (!isOutputCapable(a.gpio)) {
+    Serial.print("No se puede accionar ");
+    Serial.print(a.codigo);
+    Serial.print(". GPIO inválido: ");
+    Serial.println(a.gpio);
+    return;
+  }
+
+  int logical = on ? 1 : 0;
+  int electrical = a.invertido ? !logical : logical;
+
+  digitalWrite(a.gpio, electrical);
+  a.current = logical;
+
+  Serial.print("ACTUADOR ");
+  Serial.print(a.codigo);
+  Serial.print(" -> ");
+  Serial.print(on ? "ON" : "OFF");
+  Serial.print(" GPIO=");
+  Serial.print(a.gpio);
+  Serial.print(" write=");
+  Serial.println(electrical);
+}
+
+void addReportedStates(JsonArray reportados) {
+  for (int i = 0; i < actuatorCount; i++) {
+    if (actuators[i].current < 0) continue;
+
+    JsonObject rep = reportados.createNestedObject();
+    rep["actuador"] = actuators[i].codigo;
+
+    JsonObject estado = rep.createNestedObject("estado");
+    estado["on"] = actuators[i].current == 1;
+    estado["gpio"] = actuators[i].gpio;
+  }
+}
+
+void sendAck(const String& nonce, bool ok, const String& error = "") {
+  DynamicJsonDocument doc(2048);
+
+  doc["nonce"] = nonce;
+  doc["ok"] = ok;
+
+  if (!ok && error.length() > 0) {
+    doc["error"] = error;
+  }
+
+  JsonArray reportados = doc.createNestedArray("reportados");
+  addReportedStates(reportados);
+
+  String body;
+  serializeJson(doc, body);
+
+  Serial.println("JSON ACK:");
+  Serial.println(body);
+
+  String resp;
+  httpPOSTJson(URL_ACK, body, resp);
+}
+
+void mirrorDesiredStates(JsonArray arr) {
+  for (JsonObject a : arr) {
+    String codigo = a["codigo"] | "";
+    JsonObject estado = a["estado_deseado"];
+
+    if (codigo.length() == 0 || estado.isNull() || !estado.containsKey("on")) continue;
+
+    ActuatorCfg* local = findActuator(codigo);
+    if (!local) continue;
+
+    if (local->current == -1) {
+      applyActuator(*local, (bool)(estado["on"] | false));
+    }
+  }
+}
+
+int levelFromSensorCode(const String& codigo) {
+  String c = lowerStr(codigo);
+
+  if (c.indexOf("100") >= 0) return 100;
+  if (c.indexOf("75") >= 0) return 75;
+  if (c.indexOf("50") >= 0) return 50;
+  if (c.indexOf("25") >= 0) return 25;
+
+  return -1;
+}
+
+float currentWaterLevelPct() {
+  float best = NAN;
+
+  for (int i = 0; i < sensorCount; i++) {
+    SensorCfg& s = sensors[i];
+    String c = lowerStr(s.codigo);
+    String t = lowerStr(s.tipo);
+
+    if (c == "s_nivel" || c == "s_water" || c == "s_agua") {
+      if (!isnan(s.valor)) best = isnan(best) ? s.valor : max(best, s.valor);
+      continue;
+    }
+
+    if (c.indexOf("nivel") >= 0 || t.indexOf("nivel") >= 0) {
+      int nivel = levelFromSensorCode(s.codigo);
+
+      if (nivel > 0 && !isnan(s.valor) && s.valor > 0.5f) {
+        best = isnan(best) ? (float)nivel : max(best, (float)nivel);
+      }
+    }
+  }
+
+  if (isnan(best)) return 0;
+  return clampf(best, 0, 100);
+}
+
+bool isFeedActuator(const ActuatorCfg& a) {
+  String c = lowerStr(a.codigo);
+  String t = lowerStr(a.tipo);
+
+  return c.indexOf("alimento") >= 0 ||
+         c.indexOf("feed") >= 0 ||
+         c.indexOf("croqueta") >= 0 ||
+         t.indexOf("stepper") >= 0 ||
+         t.indexOf("dosificador") >= 0;
+}
+
+bool isWaterActuator(const ActuatorCfg& a) {
+  String c = lowerStr(a.codigo);
+  String t = lowerStr(a.tipo);
+
+  return c.indexOf("agua") >= 0 ||
+         c.indexOf("water") >= 0 ||
+         c.indexOf("valvula") >= 0 ||
+         t.indexOf("valvula") >= 0;
+}
+
+void startFeedPulse(ActuatorCfg& a, const String& nonce, int duracionSeg, bool temporizado = true) {
+  duracionSeg = constrain(duracionSeg, 1, 300);
+
+  feedAction.active = true;
+  feedAction.temporizado = temporizado;
+  feedAction.nonce = nonce;
+  feedAction.actuatorCodigo = a.codigo;
+
+  if (temporizado) {
+    feedAction.deadlineMs = millis() + ((unsigned long)duracionSeg * 1000UL);
+  } else {
+    feedAction.deadlineMs = 0;
+  }
+
+  feedAction.lastStepUs = micros();
+  feedAction.stepLevel = false;
+  feedAction.stepperMode = lowerStr(a.tipo).indexOf("stepper") >= 0 ||
+                           lowerStr(a.codigo).indexOf("step") >= 0 ||
+                           lowerStr(a.tipo).indexOf("dosificador") >= 0;
+
+  // Si existe dirección configurada, la activa. Si no existe, no pasa nada.
+  ActuatorCfg* dir = findActuator("D_ALIMENTO_DIR");
+  if (dir && isOutputCapable(dir->gpio)) applyActuator(*dir, true);
+
+  ActuatorCfg* en = findActuator("D_ALIMENTO_EN");
+  if (en && isOutputCapable(en->gpio)) applyActuator(*en, true);
+
+  if (feedAction.stepperMode) {
+    pinMode(a.gpio, OUTPUT);
+    digitalWrite(a.gpio, LOW);
+    a.current = 1;
+  } else {
+    applyActuator(a, true);
+  }
+
+  if (temporizado) {
+    Serial.print("Alimentación temporizada iniciada por ");
+    Serial.print(duracionSeg);
+    Serial.println(" s");
+  } else {
+    Serial.println("Motor de alimentación encendido en modo continuo.");
+  }
+
+  sendAck(nonce, true);
+}
+
+void stopFeedPulse(bool notify = true) {
+  if (!feedAction.active) return;
+
+  ActuatorCfg* a = findActuator(feedAction.actuatorCodigo);
+
+  if (a) {
+    if (feedAction.stepperMode && isOutputCapable(a->gpio)) {
+      digitalWrite(a->gpio, LOW);
+      a->current = 0;
+    } else {
+      applyActuator(*a, false);
+    }
+  }
+
+  ActuatorCfg* en = findActuator("D_ALIMENTO_EN");
+  if (en && isOutputCapable(en->gpio)) applyActuator(*en, false);
+
+  String nonce = feedAction.nonce;
+  feedAction.active = false;
+
+  Serial.println("Alimentación finalizada.");
+
+  if (notify && nonce.length() > 0) {
+    sendAck(nonce, true);
+  }
+}
+
+void startWaterFill(ActuatorCfg& a, const String& nonce, int targetPct, int timeoutSeg) {
+  targetPct = constrain(targetPct, 1, 100);
+  timeoutSeg = constrain(timeoutSeg, 5, 300);
+
+  float actual = currentWaterLevelPct();
+
+  if (actual >= targetPct) {
+    applyActuator(a, false);
+    Serial.println("Agua omitida: nivel objetivo ya alcanzado.");
+    sendAck(nonce, true);
+    return;
+  }
+
+  waterFill.active = true;
+  waterFill.nonce = nonce;
+  waterFill.actuatorCodigo = a.codigo;
+  waterFill.targetPct = targetPct;
+  waterFill.deadlineMs = millis() + ((unsigned long)timeoutSeg * 1000UL);
+
+  applyActuator(a, true);
+
+  Serial.print("Electroválvula activada hasta ");
+  Serial.print(targetPct);
+  Serial.print(" %. Timeout ");
+  Serial.print(timeoutSeg);
+  Serial.println(" s");
+
+  sendAck(nonce, true);
+}
+
+void stopWaterFill(bool notify = true, const String& reason = "fin") {
+  if (!waterFill.active) return;
+
+  ActuatorCfg* a = findActuator(waterFill.actuatorCodigo);
+  if (a) applyActuator(*a, false);
+
+  String nonce = waterFill.nonce;
+  waterFill.active = false;
+
+  Serial.print("Electroválvula apagada: ");
+  Serial.println(reason);
+
+  if (notify && nonce.length() > 0) {
+    sendAck(nonce, true);
+  }
+}
+void serviceTimedActions() {
+  if (feedAction.active) {
+    ActuatorCfg* a = findActuator(feedAction.actuatorCodigo);
+
+    if (!a || !isOutputCapable(a->gpio)) {
+      stopFeedPulse(true);
+    } else if ((long)(millis() - feedAction.deadlineMs) >= 0) {
+      stopFeedPulse(true);
+    } else if (feedAction.stepperMode) {
+      unsigned long nowUs = micros();
+
+      if (nowUs - feedAction.lastStepUs >= STEPPER_HALF_PERIOD_US) {
+        feedAction.lastStepUs = nowUs;
+        feedAction.stepLevel = !feedAction.stepLevel;
+        digitalWrite(a->gpio, feedAction.stepLevel ? HIGH : LOW);
+      }
+    }
+  }
+  if (waterFill.active) {
+    float nivel = currentWaterLevelPct();
+
+    if (nivel >= waterFill.targetPct) {
+      stopWaterFill(true, "nivel_objetivo_alcanzado");
+    } else if (feedAction.temporizado && (long)(millis() - feedAction.deadlineMs) >= 0) {
+      stopFeedPulse(true);
+    }
+  }
+}
+void executeCommand(JsonObject cmd) {
+  if (cmd.isNull()) return;
+
+  String nonce = cmd["nonce"] | "";
+  String tipo = cmd["tipo"] | "";
+ if (nonce.length() == 0) return;
+
+  if (tipo != "set_estado") {
+    sendAck(nonce, false, "tipo_no_soportado:" + tipo);
+    return;
+  }
+  JsonObject payload = cmd["payload"];
+  String actuador = payload["actuador"] | "";
+  JsonObject estado = payload["estado"];
+  if (actuador.length() == 0 || estado.isNull() || !estado.containsKey("on")) {
+    sendAck(nonce, false, "payload_invalido");
+    return;
+  }
+  ActuatorCfg* a = findActuator(actuador);
+  if (!a) {
+    sendAck(nonce, false, "actuador_no_configurado:" + actuador);
+    return;
+  }
+  if (!isOutputCapable(a->gpio)) {
+    sendAck(nonce, false, "gpio_no_valido_para_salida:" + String(a->gpio));
+    return;
+  }
+
+  bool on = estado["on"] | false;
+  String accion = payload["accion"] | estado["accion"] | "set_estado";
+
+  if (!on) {
+    if (feedAction.active && feedAction.actuatorCodigo == a->codigo) {
+      stopFeedPulse(false);
+    }
+
+    if (waterFill.active && waterFill.actuatorCodigo == a->codigo) {
+      stopWaterFill(false, "apagado_remoto");
+    }
+
+    applyActuator(*a, false);
+    sendAck(nonce, true);
+    return;
+  }
+
+  String codigoActuador = lowerStr(a->codigo);
+String tipoActuador = lowerStr(a->tipo);
+
+bool esMotorPaso = codigoActuador.indexOf("step") >= 0 ||
+                   codigoActuador.indexOf("feed") >= 0 ||
+                   codigoActuador.indexOf("alimento") >= 0 ||
+                   codigoActuador.indexOf("croqueta") >= 0 ||
+                   tipoActuador.indexOf("stepper") >= 0 ||
+                   tipoActuador.indexOf("dosificador") >= 0;
+
+if (esMotorPaso) {
+  if (accion == "pulso") {
+    int duracionSeg = payload["duracion_seg"] | estado["duracion_seg"] | 10;
+    startFeedPulse(*a, nonce, duracionSeg, true);
+    return;
+  }
+
+  if (accion == "set_estado") {
+    startFeedPulse(*a, nonce, 10, false);
+    return;
+  }
+}
+
+  if (accion == "llenar_hasta" && isWaterActuator(*a)) {
+    int targetPct = payload["nivel_objetivo"] | estado["nivel_objetivo"] | 50;
+    int timeoutSeg = payload["timeout_seg"] | estado["timeout_seg"] | 90;
+    startWaterFill(*a, nonce, targetPct, timeoutSeg);
+    return;
+  }
+
+  applyActuator(*a, on);
+  sendAck(nonce, true);
+}
+
+void syncFromServer() {
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("SYNC omitido: WiFi desconectado.");
+    return;
+  }
+
+  String resp;
+
+  if (!httpGET(URL_SYNC, resp)) {
+    Serial.println("SYNC fallido. Se mantiene configuración local.");
+    return;
+  }
+
+  if (!parseSyncJson(resp)) {
+    Serial.println("SYNC recibido pero no se pudo parsear.");
+    return;
+  }
+
+  saveConfigOnlyFromSync(resp);
+
+  DynamicJsonDocument doc(JSON_SYNC_CAPACITY);
+  DeserializationError err = deserializeJson(doc, resp);
+
+  if (err) {
+    Serial.print("Error parse comando sync: ");
+    Serial.println(err.c_str());
+    return;
+  }
+
+  if (doc["actuadores"].is<JsonArray>()) {
+    mirrorDesiredStates(doc["actuadores"].as<JsonArray>());
+  }
+
+  if (doc["comando"].is<JsonObject>()) {
+    JsonObject cmd = doc["comando"].as<JsonObject>();
+
+    Serial.print("Comando recibido nonce=");
+    Serial.print((const char*)cmd["nonce"]);
+    Serial.print(" tipo=");
+    Serial.println((const char*)cmd["tipo"]);
+
+    executeCommand(cmd);
+  } else {
+    Serial.println("SYNC OK: sin comandos pendientes.");
+  }
+}
+
+void readDhtSafe() {
+  if (!dhtReady || dht == nullptr) return;
+
+  float t = dht->readTemperature();
+  float h = dht->readHumidity();
+
+  if (!isnan(t) && t > -10 && t < 70) lastDhtTemp = t;
+  if (!isnan(h) && h >= 0 && h <= 100) lastDhtHr = h;
+}
+
+void readSensors() {
+  readDhtSafe();
+
+  for (int i = 0; i < sensorCount; i++) {
+    SensorCfg& s = sensors[i];
+
+    s.valor = NAN;
+    s.raw = -1;
+
+    if (!s.activo) continue;
+    if (s.driver == "ninguno") continue;
+
+    String c = lowerStr(s.codigo);
+
+    if (s.driver == "dht") {
+      if (c == "s_temp") s.valor = lastDhtTemp;
+      else if (c == "s_hr") s.valor = lastDhtHr;
+      continue;
+    }
+
+    if (!validGpio(s.gpio)) {
+      Serial.print("Sensor ");
+      Serial.print(s.codigo);
+      Serial.print(" sin GPIO válido: ");
+      Serial.println(s.gpio);
+      continue;
+    }
+
+    if (s.driver == "digital" || s.driver == "digital_level") {
+      s.raw = digitalRead(s.gpio);
+      s.valor = (float)s.raw;
+    } else if (s.driver == "adc" || s.driver == "adc_percent" || s.driver == "adc_ppm") {
+      s.raw = analogRead(s.gpio);
+
+      float v = mapFloat((float)s.raw, s.adcMin, s.adcMax, s.valMin, s.valMax);
+
+      if (s.driver == "adc_percent") v = clampf(v, 0, 100);
+      if (s.driver == "adc_ppm") v = clampf(v, 0, 5000);
+
+      s.valor = v;
+    }
+  }
+
+  Serial.println("=== LECTURAS ===");
+
+  for (int i = 0; i < sensorCount; i++) {
+    Serial.print(sensors[i].codigo);
+    Serial.print(" GPIO=");
+    Serial.print(sensors[i].gpio);
+    Serial.print(" driver=");
+    Serial.print(sensors[i].driver);
+    Serial.print(" raw=");
+    Serial.print(sensors[i].raw);
+    Serial.print(" valor=");
+    Serial.println(sensors[i].valor);
+  }
+}
+
+void postLecturas() {
+  DynamicJsonDocument doc(4096);
+  JsonArray arr = doc.createNestedArray("lecturas");
+  String ts = nowIso();
+
+  for (int i = 0; i < sensorCount; i++) {
+    SensorCfg& s = sensors[i];
+
+    if (!s.activo || isnan(s.valor)) continue;
+
+    JsonObject o = arr.createNestedObject();
+    o["codigo"] = s.codigo;
+    o["valor"] = s.valor;
+    o["calidad"] = "ok";
+
+    if (ts.length() > 0) {
+      o["medido_en"] = ts;
+    }
+
+    JsonObject raw = o.createNestedObject("raw");
+    raw["gpio"] = s.gpio;
+    raw["driver"] = s.driver;
+
+    if (s.raw >= 0) {
+      raw["adc_digital"] = s.raw;
+    }
+  }
+
+  if (arr.size() == 0) return;
+
+  String body;
+  serializeJson(doc, body);
+
+  Serial.println("JSON lecturas:");
+  Serial.println(body);
+
+  String resp;
+  httpPOSTJson(URL_LECTURAS, body, resp);
+}
+
+void setup() {
+  Serial.begin(115200);
+  delay(300);
+
+  analogSetAttenuation(ADC_11db);
+
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(WIFI_SSID, WIFI_PASS);
+
+  unsigned long t0 = millis();
+
+  while (WiFi.status() != WL_CONNECTED && millis() - t0 < 8000) {
+    delay(200);
+    Serial.print(".");
+  }
+
+  Serial.println();
+
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("WiFi OK");
+    Serial.println(WiFi.localIP());
+    initNTP();
+  } else {
+    Serial.println("WiFi no conectado. Se intentará reconectar.");
+  }
+
+  Serial.println("Forzando primera sincronización con Laravel...");
+
+  bool syncOk = false;
+
+  if (WiFi.status() == WL_CONNECTED) {
+    String resp;
+
+    if (httpGET(URL_SYNC, resp)) {
+      Serial.println("SYNC inicial OK.");
+
+      if (parseSyncJson(resp)) {
+        saveConfigOnlyFromSync(resp);
+        syncOk = true;
+      }
+    }
+  }
+
+  if (!syncOk) {
+    String cached = loadSyncJson();
+
+    if (cached.length() > 0) {
+      Serial.print("Servidor no disponible. Cargando caché bytes=");
+      Serial.println(cached.length());
+      parseSyncJson(cached);
+    } else {
+      Serial.println("Sin servidor y sin caché. ESP32 queda esperando sync.");
+    }
+  }
+
+  readSensors();
+
+  lastSyncMs = millis();
+  lastSensorMs = millis();
+  lastPostMs = millis();
+
+  Serial.println("Entrando al loop principal.");
+}
+
+void loop() {
+  ensureWiFi();
+
+  if (WiFi.status() == WL_CONNECTED && !timeReady) {
+    initNTP();
+  }
+
+  unsigned long nowMs = millis();
+
+  serviceTimedActions();
+
+  if (nowMs - lastSensorMs >= SENSOR_INTERVAL_MS) {
+    lastSensorMs = nowMs;
+    readSensors();
+  }
+
+  if (nowMs - lastSyncMs >= SYNC_INTERVAL_MS) {
+    lastSyncMs = nowMs;
+    syncFromServer();
+  }
+
+  serviceTimedActions();
+
+  if (nowMs - lastPostMs >= POST_INTERVAL_MS) {
+    lastPostMs = nowMs;
+    postLecturas();
+  }
+
+  delay(feedAction.active ? 1 : 100);
+}

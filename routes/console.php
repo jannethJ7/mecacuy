@@ -46,7 +46,7 @@ Schedule::command('mecacuy:programaciones-ejecutar')
 Schedule::command('mecacuy:comandos-depurar')
     ->everyMinute()
     ->withoutOverlapping();
-Artisan::command('mecacuy:lecturas-limpiar {--dias=1}', function () {
+Artisan::command('mecacuy:lecturas-limpiar {--dias=0}', function () {
     $dias = max(1, (int) $this->option('dias'));
 
     $limite = Carbon::now()->subDays($dias);

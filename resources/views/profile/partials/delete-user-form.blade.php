@@ -16,7 +16,7 @@
 
     <div class="mc-danger-box">
         <div>
-            <strong>Zona de riesgo</strong>
+            <strong>Eliminar cuenta</strong>
             <p>
                 Esta acción no se puede deshacer. Para eliminar la cuenta será necesario confirmar tu contraseña.
             </p>
