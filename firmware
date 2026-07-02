@@ -6,12 +6,12 @@
 #include <time.h>
 #include <math.h>
 
-const char* WIFI_SSID = "REDENTOR";
-const char* WIFI_PASS = "JoSs.0926.";
+const char* WIFI_SSID = "xxxxx";
+const char* WIFI_PASS = "xxxxx";
 
-const char* BASE_URL   = "https://mecacuy-production.up.railway.app";
+const char* BASE_URL   = "https://xxxxx";
 const char* MODULO_UID = "ESP32-MOD-001";
-const char* DEVICE_KEY = "mc_s7eyc6J9gDT3SGmzO2szGsz686H0II6Nq5IHwQRWMEyVuUO7Vi3GnGo2";
+const char* DEVICE_KEY = "xxxxxxxxx";
 const char* FW_VERSION = "mecacuy-esp32-dinamico-1.2.1";
 
 String URL_SYNC     = String(BASE_URL) + "/api/iot/v1/sync";
