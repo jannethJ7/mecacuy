@@ -188,6 +188,7 @@ class SeriesLecturasService
 
                 return [
                     'valor' => $valor,
+                    'instante' => optional($lectura->medido_en)->toIso8601String(),
                     'porcentaje' => $rango ? max(8, min(100, (($valor - $min) / $rango) * 92 + 8)) : 55,
                     'hora' => optional($lectura->medido_en)->format('H:i') ?: '--:--',
                     'modulo' => $lectura->sensor?->modulo?->codigo,

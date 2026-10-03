@@ -39,6 +39,11 @@ class Modulo extends Model
         return $this->hasMany(Actuador::class, 'modulo_id');
     }
 
+    public function camaras(): HasMany
+    {
+        return $this->hasMany(Camara::class, 'modulo_id');
+    }
+
     public function reglasAutomaticas(): HasMany
     {
         return $this->hasMany(ReglaAutomatica::class, 'modulo_id');

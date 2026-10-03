@@ -137,6 +137,13 @@ class MotorReglasAutomaticas
             return $this->omitida($regla, 'sensor_sin_lectura_actual');
         }
 
+        $staleMin = max(1, (int) $this->config('stale_min', 10));
+        if (!$sensor->valor_actual_en || $sensor->valor_actual_en->lt(now()->subMinutes($staleMin))
+            || $sensor->valor_actual_en->gt(now())) {
+            // Conserva el latch y el estado deseado hasta recibir datos válidos.
+            return $this->omitida($regla, 'lectura_vencida_o_fecha_invalida');
+        }
+
         $estadoRegla = $regla->estado ?: new EstadoRegla(['regla_id' => $regla->id]);
         $latch = is_array($estadoRegla->estado_latch) ? $estadoRegla->estado_latch : [];
         $valor = (float) $sensor->valor_actual;
@@ -360,7 +367,7 @@ class MotorReglasAutomaticas
 
     private function crearComando(ReglaAutomatica $regla, Actuador $actuador, ?array $estadoAnterior, array $estadoNuevo, float $valor, bool $activoObjetivo): int
     {
-        return DB::transaction(function () use ($regla, $actuador, $estadoAnterior, $estadoNuevo, $valor, $activoObjetivo) {
+        $comandoId = DB::transaction(function () use ($regla, $actuador, $estadoAnterior, $estadoNuevo, $valor, $activoObjetivo) {
             $actuador->update([
                 'estado_deseado' => $estadoNuevo,
                 'cambiado_en' => now(),
@@ -405,6 +412,10 @@ class MotorReglasAutomaticas
 
             return (int) $comandoId;
         });
+
+        app(MqttBridgeService::class)->despacharComando($comandoId);
+
+        return $comandoId;
     }
 
 

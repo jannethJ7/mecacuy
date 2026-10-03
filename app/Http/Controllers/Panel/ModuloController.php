@@ -53,6 +53,7 @@ class ModuloController extends Controller
     {
         $modulo->load([
             'sensores.ultimaLectura',
+            'camaras' => fn ($query) => $query->where('habilitada', true)->orderBy('nombre'),
             'actuadores',
         ]);
 

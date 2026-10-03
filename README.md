@@ -57,3 +57,11 @@ If you discover a security vulnerability within Laravel, please send an e-mail t
 ## License
 
 The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+
+## Evolución híbrida MecaCuy
+
+- **Fase 1 – Cámaras:** integración modular de cámaras por jaula mediante MediaMTX, HLS/WebRTC y relación con `modulos`. Ver `CAMARAS_FASE1.md`.
+- **Fase 2 – MQTT híbrido:** REST se conserva como respaldo y MQTT se incorpora para telemetría, comandos, ACK y estado/LWT mediante EMQX. Ver `MQTT_FASE2.md`.
+- Firmware recomendado para esta fase: `firmware_mqtt_hibrido.ino`. El archivo `firmware` se conserva como referencia REST.
+
+Para la primera validación se recomienda usar únicamente `MOD-001` y `D_FAN`, comprobar MQTT y luego desconectar el broker para verificar el fallback REST antes de incorporar los demás actuadores.

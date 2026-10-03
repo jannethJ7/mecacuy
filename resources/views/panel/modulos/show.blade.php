@@ -1,5 +1,9 @@
 @extends('layouts.panel')
 
+@section('title', $modulo->nombre ?: $modulo->codigo)
+@section('page-title', $modulo->nombre ?: $modulo->codigo)
+@section('page-subtitle', 'Centro de monitoreo')
+
 @section('content')
 @php
     $rol = auth()->user()->rol ?? 'lector';
@@ -175,12 +179,53 @@
         </div>
     </div>
 
-    <div class="jaula-layout">
+    <div class="jaula-layout module-monitor-layout">
+        {{-- Cards de sensores --}}
+        <section class="sensor-strip">
+            <div class="sensor-mini-card">
+                <i class="ph ph-thermometer"></i>
+                <div>
+                    <strong>{{ $formatoValor($temp, 1, '°C') }}</strong>
+                    <span>Temperatura</span>
+                    <small>{{ $tempSensor ? $momentoSensor($tempSensor) : 'Sensor no registrado' }}</small>
+                </div>
+            </div>
+
+            <div class="sensor-mini-card">
+                <i class="ph ph-drop"></i>
+                <div>
+                    <strong>{{ $formatoValor($hum, 0, '%') }}</strong>
+                    <span>Humedad</span>
+                    <small>{{ $humSensor ? $momentoSensor($humSensor) : 'Sensor no registrado' }}</small>
+                </div>
+            </div>
+
+            <div class="sensor-mini-card">
+                <i class="ph ph-cloud"></i>
+                <div>
+                    <strong>{{ $formatoValor($nh3, 0, $nh3Sensor?->unidad ?: 'ppm') }}</strong>
+                    <span>Amoniaco / aire</span>
+                    <small>{{ $nh3Sensor ? $momentoSensor($nh3Sensor) : 'Sensor no registrado' }}</small>
+                </div>
+            </div>
+
+            <div class="sensor-mini-card">
+                <i class="ph ph-waves"></i>
+                <div>
+                    <strong>{{ $formatoValor($agua, 0, $aguaSensor?->unidad ?: '%') }}</strong>
+                    <span>Nivel de agua</span>
+                    <small>{{ $aguaSensor ? $momentoSensor($aguaSensor) : 'Sensor no registrado' }}</small>
+                </div>
+            </div>
+        </section>
+
+        @include('panel.modulos._camera')
+
 
         {{-- Vista principal de jaula --}}
         <section class="jaula-card jaula-visual-card">
             <div class="card-title-row">
-                <h2>Vista de la jaula</h2>
+                <h2>Esquema de la jaula</h2>
                 <span class="small-info">Módulo {{ $modulo->codigo }}</span>
             </div>
 
@@ -418,80 +463,65 @@
             </div>
         </aside>
 
-        {{-- Cards de sensores --}}
-        <section class="sensor-strip">
-            <div class="sensor-mini-card">
-                <i class="ph ph-thermometer"></i>
-                <div>
-                    <strong>{{ $formatoValor($temp, 1, '°C') }}</strong>
-                    <span>Temperatura</span>
-                    <small>{{ $tempSensor ? $momentoSensor($tempSensor) : 'Sensor no registrado' }}</small>
-                </div>
-            </div>
-
-            <div class="sensor-mini-card">
-                <i class="ph ph-drop"></i>
-                <div>
-                    <strong>{{ $formatoValor($hum, 0, '%') }}</strong>
-                    <span>Humedad</span>
-                    <small>{{ $humSensor ? $momentoSensor($humSensor) : 'Sensor no registrado' }}</small>
-                </div>
-            </div>
-
-            <div class="sensor-mini-card">
-                <i class="ph ph-cloud"></i>
-                <div>
-                    <strong>{{ $formatoValor($nh3, 0, $nh3Sensor?->unidad ?: 'ppm') }}</strong>
-                    <span>Amoniaco / aire</span>
-                    <small>{{ $nh3Sensor ? $momentoSensor($nh3Sensor) : 'Sensor no registrado' }}</small>
-                </div>
-            </div>
-
-            <div class="sensor-mini-card">
-                <i class="ph ph-waves"></i>
-                <div>
-                    <strong>{{ $formatoValor($agua, 0, $aguaSensor?->unidad ?: '%') }}</strong>
-                    <span>Nivel de agua</span>
-                    <small>{{ $aguaSensor ? $momentoSensor($aguaSensor) : 'Sensor no registrado' }}</small>
-                </div>
-            </div>
-        </section>
-
-        {{-- Gráficas --}}
         <section class="jaula-card charts-card">
             <div class="card-title-row">
-                <h2>Últimas lecturas registradas</h2>
-                <span class="small-info">Máximo 24 puntos por sensor</span>
+                <h2>Tendencias del ambiente</h2>
             </div>
-
-            <div class="charts-grid">
-                @foreach($seriesGraficas as $serie)
-                    <div class="chart-box">
-                        <div class="chart-head">
-                            <span>{{ $serie['titulo'] }}</span>
-                            <strong>
-                                {{ $serie['actual'] !== null ? number_format((float) $serie['actual'], $serie['decimales']) . ' ' . $serie['unidad'] : '--' }}
-                            </strong>
-                        </div>
-
-                        @if(count($serie['puntos']))
-                            <div class="live-chart" aria-label="{{ $serie['titulo'] }}">
-                                @foreach($serie['puntos'] as $punto)
-                                    <span class="live-chart-bar"
-                                          style="height: {{ number_format($punto['porcentaje'], 2, '.', '') }}%"
-                                          title="{{ number_format($punto['valor'], $serie['decimales']) }} {{ $serie['unidad'] }} - {{ $punto['hora'] }}"></span>
-                                @endforeach
-                            </div>
-                        @else
-                            <div class="chart-empty">
-                                <i class="ph ph-chart-line-down"></i>
-                                Sin lecturas para graficar
-                            </div>
+            @php
+                $seriesAmbiente = array_intersect_key($seriesGraficas, array_flip(['temperatura', 'humedad', 'aire']));
+                $colores = ['temperatura' => '#dd6800', 'humedad' => '#2486e8', 'aire' => '#009a87'];
+                $instantes = collect($seriesAmbiente)->flatMap(fn ($serie) => collect($serie['puntos'])->pluck('instante'))->filter()->map(fn ($fecha) => strtotime($fecha))->filter()->all();
+                $inicioGrafica = $instantes ? min($instantes) : 0;
+                $finGrafica = $instantes ? max($instantes) : 0;
+                $duracionGrafica = max(1, $finGrafica - $inicioGrafica);
+            @endphp
+            <div class="module-chart-legend">
+                @foreach($seriesAmbiente as $clave => $serie)
+                    <div>
+                        <span class="module-chart-dot" style="background: {{ $colores[$clave] }}"></span>
+                        <strong>{{ $serie['titulo'] }}</strong>
+                        <span>{{ $serie['actual'] !== null ? number_format((float) $serie['actual'], $serie['decimales']).' '.$serie['unidad'] : 'Sin datos' }}</span>
+                        @if($serie['min'] !== null)
+                            <small>Escala: {{ number_format($serie['min'], $serie['decimales']) }}–{{ number_format($serie['max'], $serie['decimales']) }} {{ $serie['unidad'] }}</small>
                         @endif
                     </div>
                 @endforeach
             </div>
+            @if($instantes)
+                <svg class="module-combined-chart" viewBox="0 0 420 280" role="img" aria-label="Líneas con puntos de temperatura, humedad y calidad del aire">
+                    <title>Tendencias del ambiente. Cada sensor usa su propia escala; pasa sobre los puntos para ver el valor y la fecha.</title>
+                    @foreach([30, 80, 130, 180, 230] as $y)
+                        <line x1="24" x2="396" y1="{{ $y }}" y2="{{ $y }}" class="module-chart-grid" />
+                    @endforeach
+                    @foreach($seriesAmbiente as $clave => $serie)
+                        @php
+                            $coords = [];
+                            $rangoSerie = (float) ($serie['max'] ?? 0) - (float) ($serie['min'] ?? 0);
+                            foreach ($serie['puntos'] as $punto) {
+                                if (empty($punto['instante'])) continue;
+                                $x = $finGrafica === $inicioGrafica ? 210 : 24 + (strtotime($punto['instante']) - $inicioGrafica) / $duracionGrafica * 372;
+                                $y = $rangoSerie > 0 ? 230 - ((float) $punto['valor'] - (float) $serie['min']) / $rangoSerie * 200 : 130;
+                                $coords[] = ['x' => round($x, 2), 'y' => round($y, 2), 'punto' => $punto];
+                            }
+                        @endphp
+                        @if($coords)
+                            <polyline points="{{ implode(' ', array_map(fn ($coord) => $coord['x'].','.$coord['y'], $coords)) }}" fill="none" stroke="{{ $colores[$clave] }}" stroke-width="2.5" stroke-linejoin="round" />
+                            @foreach($coords as $coord)
+                                <circle cx="{{ $coord['x'] }}" cy="{{ $coord['y'] }}" r="4" fill="{{ $colores[$clave] }}" stroke="var(--mc-cage-chart-bg)" stroke-width="1.5" tabindex="0">
+                                    <title>{{ $serie['titulo'] }}: {{ number_format($coord['punto']['valor'], $serie['decimales']) }} {{ $serie['unidad'] }} · {{ \Carbon\Carbon::parse($coord['punto']['instante'])->format('d/m/Y H:i') }}</title>
+                                </circle>
+                            @endforeach
+                        @endif
+                    @endforeach
+                    <text x="24" y="264" class="module-chart-axis">{{ date('d/m H:i', $inicioGrafica) }}</text>
+                    <text x="396" y="264" text-anchor="end" class="module-chart-axis">{{ date('d/m H:i', $finGrafica) }}</text>
+                </svg>
+            @else
+                <div class="chart-empty">Sin lecturas para graficar.</div>
+            @endif
+            <p class="module-chart-note">Tiempo compartido · escala independiente por sensor. Pasa sobre un punto para ver el valor.</p>
         </section>
+
 
     </div>
 </div>
@@ -584,4 +614,10 @@ document.addEventListener('change', async function (event) {
     }
 });
 </script>
+@endpush
+
+
+@push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.18"></script>
+<script src="{{ asset('dashboard/assets/js/mecacuy/module-camera.js') }}?v={{ filemtime(public_path('dashboard/assets/js/mecacuy/module-camera.js')) }}"></script>
 @endpush

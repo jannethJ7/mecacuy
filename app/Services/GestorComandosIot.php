@@ -249,8 +249,33 @@ class GestorComandosIot
             ];
         }
 
-        $now = now();
         $nuevoEstado = $ok ? 'confirmado' : 'fallido';
+
+        // En modo híbrido el mismo ACK puede llegar por MQTT y por REST.
+        // Si ya alcanzó el mismo estado terminal, responder de forma idempotente
+        // sin volver a generar actuaciones ni alertas.
+        if ($cmd->estado === $nuevoEstado) {
+            return [
+                'ok' => true,
+                'estado' => $nuevoEstado,
+                'comando_id' => (int) $cmd->id,
+                'nonce' => $nonce,
+                'intentos' => (int) $cmd->intentos,
+                'duplicado' => true,
+                'alerta_comando' => null,
+            ];
+        }
+
+        if (in_array($cmd->estado, ['confirmado', 'fallido', 'expirado'], true)) {
+            return [
+                'ok' => false,
+                'estado' => $cmd->estado,
+                'nonce' => $nonce,
+                'mensaje' => 'El comando ya alcanzó un estado terminal incompatible con este ACK.',
+            ];
+        }
+
+        $now = now();
         $mensajeError = $ok ? null : ($error ?: 'Comando fallido reportado por el ESP32.');
 
         DB::table('comandos_iot')

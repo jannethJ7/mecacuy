@@ -1,0 +1,17 @@
+# MecaCuy - MediaMTX
+# La fuente RTSP real se mantiene en este servicio y no en Laravel.
+# Para la primera prueba, reemplaza la URL de MOD-001 por la de tu cámara.
+
+hls: yes
+hlsAddress: :8888
+webrtc: yes
+webrtcAddress: :8889
+
+paths:
+  mod-001:
+    # Ejemplo cámara IP / NVR:
+    # source: rtsp://usuario:password@192.168.1.50:554/stream1
+    # sourceOnDemand: yes
+
+    # Mientras no haya una fuente RTSP definida, acepta que una cámara/gateway publique al path.
+    source: publisher

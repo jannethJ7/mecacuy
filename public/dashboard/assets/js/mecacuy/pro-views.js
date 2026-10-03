@@ -100,7 +100,7 @@
         }
 
         if (!values.length) {
-            ctx.fillStyle = 'rgba(203,213,225,.75)';
+            ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--mc-muted-solid').trim() || '#52657b';
             ctx.font = '700 14px system-ui';
             ctx.fillText('Sin datos para graficar', pad.left, height / 2);
             return;
@@ -136,13 +136,13 @@
         ctx.lineCap = 'round';
         ctx.stroke();
 
-        ctx.fillStyle = '#cbd5e1';
+        ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--mc-text').trim() || '#1e2f41';
         ctx.font = '700 11px system-ui';
         ctx.fillText(max.toFixed(2), 8, pad.top + 4);
         ctx.fillText(min.toFixed(2), 8, height - pad.bottom + 4);
 
         if (labels.length) {
-            ctx.fillStyle = 'rgba(203,213,225,.75)';
+            ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--mc-muted-solid').trim() || '#52657b';
             ctx.font = '700 10px system-ui';
             ctx.fillText(labels[0] || '', pad.left, height - 10);
             ctx.textAlign = 'right';
@@ -466,6 +466,10 @@
         document.querySelectorAll('[data-mc-line-chart]').forEach(drawLineChart);
         initFancySelects();
         initNumberSteppers();
+    });
+
+    window.addEventListener('mc-theme-change', function () {
+        document.querySelectorAll('[data-mc-line-chart]').forEach(drawLineChart);
     });
 
     window.addEventListener('resize', function () {

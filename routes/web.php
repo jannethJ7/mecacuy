@@ -5,6 +5,7 @@ use App\Http\Controllers\Panel\PanelController;
 use App\Http\Controllers\Panel\ActuadorController;
 use App\Http\Controllers\Panel\AjusteSistemaController;
 use App\Http\Controllers\Panel\AlertaController;
+use App\Http\Controllers\Panel\CamaraController;
 use App\Http\Controllers\Panel\LecturaController;
 use App\Http\Controllers\Panel\ModuloController;
 use App\Http\Controllers\Panel\ProgramacionController;
@@ -107,6 +108,27 @@ Route::middleware(['auth'])->group(function () {
         Route::post('actuadores/{actuador}/manual', [ActuadorController::class, 'manual'])
             ->middleware('role:admin,operador')
             ->name('actuadores.manual');
+
+        /*
+        |--------------------------------------------------------------------------
+        | Cámaras
+        |--------------------------------------------------------------------------
+        | admin: crea, edita y elimina.
+        | operador y lector: visualizan las transmisiones.
+        */
+        Route::resource('camaras', CamaraController::class)
+            ->except(['index', 'show'])
+            ->middleware('role:admin')
+            ->parameters([
+                'camaras' => 'camara',
+            ]);
+
+        Route::resource('camaras', CamaraController::class)
+            ->only(['index', 'show'])
+            ->middleware('role:admin,operador,lector')
+            ->parameters([
+                'camaras' => 'camara',
+            ]);
 
         /*
         |--------------------------------------------------------------------------

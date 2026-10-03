@@ -15,13 +15,9 @@
     href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap"
 >
 
-<link rel="stylesheet" href="{{ asset('dashboard/assets/css/mecacuy/panel.css') }}">
-
-{{-- CSS de vistas pro --}}
-<link rel="stylesheet" href="{{ asset('dashboard/assets/css/mecacuy/pro-views.css') }}?v={{ time() }}">
-
-{{-- CSS específico de jaula --}}
-<link rel="stylesheet" href="{{ asset('dashboard/assets/css/mecacuy/jaula.css') }}?v={{ time() }}">
+{{-- Variables y componentes se cargan una sola vez. La versión cambia al editar el archivo. --}}
+<link rel="stylesheet" href="{{ asset('dashboard/assets/css/mecacuy/theme.css') }}?v={{ filemtime(public_path('dashboard/assets/css/mecacuy/theme.css')) }}">
+<link rel="stylesheet" href="{{ asset('dashboard/assets/css/mecacuy/panel.css') }}?v={{ filemtime(public_path('dashboard/assets/css/mecacuy/panel.css')) }}">
 
 {{-- Remix Icon --}}
 <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">

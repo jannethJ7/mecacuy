@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Iot\V1\ControladorIot;
+use App\Http\Controllers\Iot\V1\MqttWebhookController;
 
 Route::prefix('iot/v1')
     ->middleware('iot.modulo')
@@ -10,3 +11,6 @@ Route::prefix('iot/v1')
         Route::get('/sync',      [ControladorIot::class, 'sync']);           // ESP32 <- estado + comando
         Route::post('/ack',      [ControladorIot::class, 'ack']);            // ESP32 -> confirmación + reportes
     });
+// EMQX -> Laravel. Protegido por X-MECACUY-MQTT-SECRET.
+Route::post('/mqtt/v1/webhook', MqttWebhookController::class)
+    ->middleware('throttle:240,1');

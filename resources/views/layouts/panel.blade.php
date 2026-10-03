@@ -22,7 +22,8 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    @include('layouts.partials.panel.head')
+    <script src="{{ asset('dashboard/assets/js/mecacuy/theme.js') }}"></script>
+    @include('layouts.partials.panel.head') 
 </head>
 
 <body class="mc-panel-body">
@@ -43,6 +44,10 @@
                 </div>
 
                 <div class="mc-topbar-actions">
+                    <button type="button" class="mc-theme-toggle" id="mcThemeToggle"
+                        aria-label="Cambiar a modo oscuro" title="Cambiar a modo oscuro" aria-pressed="false">
+                        <i class="ri-moon-line" aria-hidden="true"></i><span>Modo oscuro</span>
+                    </button>
                     <div class="mc-dropdown" data-dropdown>
                         <button type="button" class="mc-icon-btn mc-notification-btn" data-dropdown-button aria-label="Notificaciones">
                             🔔

@@ -1,0 +1,22 @@
+services:
+  emqx:
+    image: emqx/emqx-enterprise:6.3.0
+    container_name: mecacuy-emqx
+    hostname: mqtt.local
+    restart: unless-stopped
+    environment:
+      EMQX_NODE_NAME: emqx@mqtt.local
+      EMQX_DASHBOARD__DEFAULT_PASSWORD: ${EMQX_DASHBOARD_PASSWORD:-CAMBIAR_ESTA_PASSWORD}
+    ports:
+      - "1883:1883"   # MQTT TCP (solo red controlada durante pruebas)
+      - "8883:8883"   # MQTTS/TLS para producción
+      - "8083:8083"   # MQTT WebSocket
+      - "8084:8084"   # MQTT WebSocket TLS
+      - "18083:18083" # Dashboard/API de administración
+    volumes:
+      - emqx_data:/opt/emqx/data
+      - emqx_log:/opt/emqx/log
+
+volumes:
+  emqx_data:
+  emqx_log:

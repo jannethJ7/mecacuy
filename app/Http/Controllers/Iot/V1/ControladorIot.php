@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Iot\V1;
 
 use App\Services\GestorComandosIot;
+use App\Services\ProcesadorAckIot;
+use App\Services\ProcesadorTelemetriaIot;
 use App\Services\MotorAlertasAutomaticas;
 use App\Services\MotorProgramaciones;
 use App\Services\MotorReglasAutomaticas;
@@ -22,7 +24,6 @@ class ControladorIot
             'lecturas' => ['required', 'array', 'min:1'],
             'lecturas.*.codigo' => ['nullable', 'string', 'max:40'],
             'lecturas.*.sensor' => ['nullable', 'string', 'max:40'],
-
             'lecturas.*.valor' => ['required', 'numeric'],
             'lecturas.*.medido_en' => ['nullable', 'date'],
             'lecturas.*.calidad' => ['nullable', 'in:ok,dudoso,error'],
@@ -40,103 +41,9 @@ class ControladorIot
             throw ValidationException::withMessages($erroresCodigo);
         }
 
-        $now = now();
-        $guardadas = 0;
-        $omitidas = [];
+        $resultado = app(ProcesadorTelemetriaIot::class)->procesar($modulo, $data['lecturas']);
 
-        foreach ($data['lecturas'] as $i => $l) {
-            $codigoSensor = $l['codigo'] ?? $l['sensor'] ?? null;
-
-            $sensor = DB::table('sensores')
-                ->where('modulo_id', $modulo->id)
-                ->where('codigo', $codigoSensor)
-                ->first();
-
-            if (!$sensor) {
-                $omitidas[] = [
-                    'indice' => $i,
-                    'codigo' => $codigoSensor,
-                    'motivo' => 'sensor_no_encontrado_en_el_modulo',
-                ];
-                continue;
-            }
-
-            if (!(bool) $sensor->activo) {
-                $omitidas[] = [
-                    'indice' => $i,
-                    'codigo' => $codigoSensor,
-                    'motivo' => 'sensor_inactivo',
-                ];
-                continue;
-            }
-
-            $medidoEn = $l['medido_en'] ?? $now;
-
-            $raw = $l['raw'] ?? [];
-            $raw['codigo_recibido'] = $codigoSensor;
-            $raw['campo_codigo_usado'] = array_key_exists('codigo', $l) ? 'codigo' : 'sensor';
-
-            DB::table('lecturas')->insert([
-                'sensor_id'   => $sensor->id,
-                'valor'       => $l['valor'],
-                'medido_en'   => $medidoEn,
-                'recibido_en' => $now,
-                'calidad'     => $l['calidad'] ?? 'ok',
-                'raw'         => json_encode($raw),
-                'created_at'  => $now,
-                'updated_at'  => $now,
-            ]);
-
-            DB::table('sensores')->where('id', $sensor->id)->update([
-                'valor_actual'    => $l['valor'],
-                'valor_actual_en' => $medidoEn,
-                'updated_at'      => $now,
-            ]);
-
-            $guardadas++;
-        }
-
-        $resultadoReglas = null;
-        $resultadoAlertas = null;
-
-        if ($guardadas > 0) {
-            try {
-                $resultadoReglas = app(MotorReglasAutomaticas::class)->evaluarModulo((int) $modulo->id);
-            } catch (Throwable $e) {
-                Log::error('Error al evaluar reglas automáticas después de guardar lecturas.', [
-                    'modulo_id' => $modulo->id,
-                    'error' => $e->getMessage(),
-                ]);
-
-                $resultadoReglas = [
-                    'ok' => false,
-                    'error' => 'No se pudieron evaluar las reglas automáticas.',
-                ];
-            }
-
-            try {
-                $resultadoAlertas = app(MotorAlertasAutomaticas::class)->evaluarModulo((int) $modulo->id);
-            } catch (Throwable $e) {
-                Log::error('Error al evaluar alertas automáticas después de guardar lecturas.', [
-                    'modulo_id' => $modulo->id,
-                    'error' => $e->getMessage(),
-                ]);
-
-                $resultadoAlertas = [
-                    'ok' => false,
-                    'error' => 'No se pudieron evaluar las alertas automáticas.',
-                ];
-            }
-        }
-
-        return response()->json([
-            'ok' => true,
-            'recibidas' => count($data['lecturas']),
-            'guardadas' => $guardadas,
-            'omitidas' => $omitidas,
-            'automatizacion' => $resultadoReglas,
-            'alertas' => $resultadoAlertas,
-        ]);
+        return response()->json($resultado);
     }
 
     /**
@@ -279,54 +186,15 @@ class ControladorIot
             'reportados.*.estado' => ['required_with:reportados', 'array'],
         ]);
 
-        $resultadoAck = app(GestorComandosIot::class)->registrarAck(
-            (int) $modulo->id,
+        $resultado = app(ProcesadorAckIot::class)->procesar(
+            $modulo,
             $data['nonce'],
             (bool) $data['ok'],
-            $data['error'] ?? null
+            $data['error'] ?? null,
+            $data['reportados'] ?? []
         );
 
-        $resultadoAlertaComando = $resultadoAck['alerta_comando'] ?? null;
-
-        if (!empty($data['reportados'])) {
-            foreach ($data['reportados'] as $rep) {
-                $act = DB::table('actuadores')
-                    ->where('modulo_id', $modulo->id)
-                    ->where('codigo', $rep['actuador'])
-                    ->first();
-
-                if (!$act) continue;
-
-                // Guardar estado reportado
-                DB::table('actuadores')->where('id', $act->id)->update([
-                    'estado_reportado' => json_encode($rep['estado']),
-                    'estado_deseado' => json_encode($rep['estado']),
-                    'cambiado_en' => now(),
-                    'updated_at' => now(),
-                ]);
-                DB::table('actuaciones')->insert([
-                    'modulo_id' => $modulo->id,
-                    'actuador_id' => $act->id,
-                    'origen' => 'sistema',
-                    'estado_anterior' => $act->estado_reportado,
-                    'estado_nuevo' => json_encode($rep['estado']),
-                    'motivo' => json_encode([
-                        'fuente' => 'ack',
-                        'nonce' => $data['nonce'],
-                        'ok' => $data['ok'],
-                    ]),
-                    'ejecutado_en' => now(),
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
-            }
-        }
-
-        return response()->json([
-            'ok' => true,
-            'ack' => $resultadoAck,
-            'alerta_comando' => $resultadoAlertaComando,
-        ]);
+        return response()->json($resultado);
     }
 
     private function getConfig(string $clave, $default = null)

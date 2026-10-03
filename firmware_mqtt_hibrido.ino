@@ -1,22 +1,52 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
+#include <espMqttClient.h>
 #include <ArduinoJson.h>
 #include <Preferences.h>
 #include <DHT.h>
 #include <time.h>
 #include <math.h>
 
+// ========= CREDENCIALES DEL DISPOSITIVO =========
+// Completa estos valores antes de cargar el firmware. No subas secretos reales a Git.
 const char* WIFI_SSID = "TU_WIFI";
 const char* WIFI_PASS = "TU_PASSWORD_WIFI";
 
-const char* BASE_URL   = "https://xxxxx";
-const char* MODULO_UID = "ESP32-MOD-001";
-const char* DEVICE_KEY = "TU_DEVICE_KEY_REGENERADA";
-const char* FW_VERSION = "mecacuy-esp32-rest-1.2.2";
+const char* BASE_URL      = "https://mecacuy-production.up.railway.app";
+const char* MODULO_UID    = "ESP32-MOD-001";
+const char* MODULO_CODIGO = "MOD-001";
+const char* DEVICE_KEY    = "TU_DEVICE_KEY_REGENERADA";
+const char* FW_VERSION    = "mecacuy-esp32-hibrido-2.0.0";
+
+// ========= MQTT (EMQX) =========
+// Empieza con false: REST sigue funcionando. Cuando el broker esté listo,
+// completa host/credenciales y cambia a true.
+const bool MQTT_ENABLED = false;
+const char* MQTT_HOST = "192.168.1.100";
+const uint16_t MQTT_PORT = 1883;
+const char* MQTT_USER = "mod001";
+const char* MQTT_PASS = "CAMBIAR_PASSWORD_MQTT";
+const char* MQTT_TOPIC_PREFIX = "mecacuy";
 
 String URL_SYNC     = String(BASE_URL) + "/api/iot/v1/sync";
 String URL_LECTURAS = String(BASE_URL) + "/api/iot/v1/lecturas";
 String URL_ACK      = String(BASE_URL) + "/api/iot/v1/ack";
+
+espMqttClient mqttClient;
+String mqttClientId = "";
+String mqttOfflinePayload = "";
+String mqttRxBuffer = "";
+String mqttRxTopic = "";
+size_t mqttRxTotal = 0;
+String TOPIC_TELEMETRY = String(MQTT_TOPIC_PREFIX) + "/" + MODULO_CODIGO + "/telemetry";
+String TOPIC_COMMAND   = String(MQTT_TOPIC_PREFIX) + "/" + MODULO_CODIGO + "/command";
+String TOPIC_ACK       = String(MQTT_TOPIC_PREFIX) + "/" + MODULO_CODIGO + "/ack";
+String TOPIC_STATUS    = String(MQTT_TOPIC_PREFIX) + "/" + MODULO_CODIGO + "/status";
+unsigned long lastMqttTryMs = 0;
+const unsigned long MQTT_RETRY_MS = 5000;
+const int NONCE_HISTORY_SIZE = 8;
+String nonceHistory[NONCE_HISTORY_SIZE];
+int nonceHistoryCount = 0;
 
 const char* NTP1 = "pool.ntp.org";
 const char* NTP2 = "time.google.com";
@@ -100,6 +130,8 @@ struct WaterFillState {
 
 FeedActionState feedAction;
 WaterFillState waterFill;
+
+void executeCommand(JsonObject cmd);
 
 const unsigned long STEPPER_HALF_PERIOD_US = 3000;
 
@@ -260,6 +292,62 @@ String loadSyncJson() {
   String s = prefs.getString("sync_json", "");
   prefs.end();
   return s;
+}
+
+void loadNonceHistory() {
+  prefs.begin("mecacuy", true);
+  String raw = prefs.getString("nonce_hist", "");
+  prefs.end();
+
+  nonceHistoryCount = 0;
+  int inicio = 0;
+
+  while (inicio < raw.length() && nonceHistoryCount < NONCE_HISTORY_SIZE) {
+    int sep = raw.indexOf('|', inicio);
+    String item = sep >= 0 ? raw.substring(inicio, sep) : raw.substring(inicio);
+    item.trim();
+
+    if (item.length() > 0) {
+      nonceHistory[nonceHistoryCount++] = item;
+    }
+
+    if (sep < 0) break;
+    inicio = sep + 1;
+  }
+}
+
+bool nonceYaEjecutado(const String& nonce) {
+  for (int i = 0; i < nonceHistoryCount; i++) {
+    if (nonceHistory[i] == nonce) return true;
+  }
+  return false;
+}
+
+void saveNonceHistory() {
+  String raw = "";
+  for (int i = 0; i < nonceHistoryCount; i++) {
+    if (i > 0) raw += "|";
+    raw += nonceHistory[i];
+  }
+
+  prefs.begin("mecacuy", false);
+  prefs.putString("nonce_hist", raw);
+  prefs.end();
+}
+
+void registrarNonceEjecutado(const String& nonce) {
+  if (nonceYaEjecutado(nonce)) return;
+
+  if (nonceHistoryCount < NONCE_HISTORY_SIZE) {
+    nonceHistory[nonceHistoryCount++] = nonce;
+  } else {
+    for (int i = 1; i < NONCE_HISTORY_SIZE; i++) {
+      nonceHistory[i - 1] = nonceHistory[i];
+    }
+    nonceHistory[NONCE_HISTORY_SIZE - 1] = nonce;
+  }
+
+  saveNonceHistory();
 }
 
 bool saveConfigOnlyFromSync(const String& json) {
@@ -488,6 +576,14 @@ bool parseSyncJson(const String& resp) {
 
       if (isOutputCapable(A.gpio)) {
         pinMode(A.gpio, OUTPUT);
+
+        // Si es un actuador recién descubierto, inicializar físicamente OFF.
+        // A.current permanece -1 para que mirrorDesiredStates() pueda aplicar
+        // después el estado deseado enviado por Laravel.
+        if (A.current == -1) {
+          int offElectrical = A.invertido ? HIGH : LOW;
+          digitalWrite(A.gpio, offElectrical);
+        }
       } else {
         Serial.print("ADVERTENCIA: actuador ");
         Serial.print(A.codigo);
@@ -516,6 +612,121 @@ bool parseSyncJson(const String& resp) {
   Serial.println(modoGlobal);
 
   return true;
+}
+
+bool mqttDisponible() {
+  return MQTT_ENABLED && WiFi.status() == WL_CONNECTED && mqttClient.connected();
+}
+
+bool mqttPublishJson(const String& topic, const String& body, bool retained = false) {
+  if (!mqttDisponible()) return false;
+
+  uint16_t packetId = mqttClient.publish(topic.c_str(), 1, retained, body.c_str());
+  bool ok = packetId != 0;
+
+  Serial.print("MQTT PUB QoS1 ");
+  Serial.print(topic);
+  Serial.print(" -> ");
+  Serial.println(ok ? "ENCOLADO" : "ERROR");
+  return ok;
+}
+
+void publishMqttStatus(const char* estado) {
+  if (!mqttDisponible()) return;
+
+  DynamicJsonDocument doc(512);
+  doc["status"] = estado;
+  doc["uid"] = MODULO_UID;
+  doc["codigo"] = MODULO_CODIGO;
+  doc["fw"] = FW_VERSION;
+  doc["rssi"] = WiFi.RSSI();
+  doc["ip"] = WiFi.localIP().toString();
+
+  String body;
+  serializeJson(doc, body);
+  mqttPublishJson(TOPIC_STATUS, body, true);
+}
+
+void procesarMqttCommand(const String& body) {
+  DynamicJsonDocument doc(4096);
+  DeserializationError err = deserializeJson(doc, body);
+
+  if (err) {
+    Serial.print("MQTT comando JSON inválido: ");
+    Serial.println(err.c_str());
+    return;
+  }
+
+  if (!doc.is<JsonObject>()) return;
+
+  Serial.print("MQTT comando recibido: ");
+  Serial.println(body);
+  executeCommand(doc.as<JsonObject>());
+}
+
+void onMqttMessage(
+  const espMqttClientTypes::MessageProperties& properties,
+  const char* topic,
+  const uint8_t* payload,
+  size_t len,
+  size_t index,
+  size_t total
+) {
+  String topicStr(topic);
+  if (topicStr != TOPIC_COMMAND) return;
+
+  if (index == 0) {
+    mqttRxBuffer = "";
+    mqttRxTopic = topicStr;
+    mqttRxTotal = total;
+    mqttRxBuffer.reserve(total + 1);
+  }
+
+  for (size_t i = 0; i < len; i++) {
+    mqttRxBuffer += (char) payload[i];
+  }
+
+  if (index + len >= total) {
+    String completo = mqttRxBuffer;
+    mqttRxBuffer = "";
+    mqttRxTotal = 0;
+    procesarMqttCommand(completo);
+  }
+}
+
+void onMqttConnect(bool sessionPresent) {
+  Serial.print("MQTT conectado. sessionPresent=");
+  Serial.println(sessionPresent ? "SI" : "NO");
+
+  uint16_t subId = mqttClient.subscribe(TOPIC_COMMAND.c_str(), 1);
+  Serial.print("Suscripción command packetId=");
+  Serial.println(subId);
+
+  publishMqttStatus("online");
+}
+
+void onMqttDisconnect(espMqttClientTypes::DisconnectReason reason) {
+  Serial.print("MQTT desconectado. reason=");
+  Serial.println((int) reason);
+}
+
+void ensureMqtt() {
+  if (!MQTT_ENABLED || WiFi.status() != WL_CONNECTED) return;
+  if (mqttClient.connected()) return;
+  if (!mqttClient.disconnected()) return;
+
+  unsigned long ahora = millis();
+  if (ahora - lastMqttTryMs < MQTT_RETRY_MS) return;
+  lastMqttTryMs = ahora;
+
+  Serial.print("Conectando MQTT a ");
+  Serial.print(MQTT_HOST);
+  Serial.print(":");
+  Serial.println(MQTT_PORT);
+
+  if (!mqttClient.connect()) {
+    Serial.println("No se pudo iniciar la conexión MQTT. REST sigue activo.");
+  }
 }
 
 void applyActuator(ActuatorCfg& a, bool on) {
@@ -575,8 +786,15 @@ void sendAck(const String& nonce, bool ok, const String& error = "") {
   Serial.println("JSON ACK:");
   Serial.println(body);
 
+  // ACK es crítico y de muy bajo volumen: durante la fase híbrida se envía
+  // por ambos canales. Laravel trata el mismo nonce de forma idempotente.
+  bool enviadoMqtt = mqttPublishJson(TOPIC_ACK, body, false);
   String resp;
-  httpPOSTJson(URL_ACK, body, resp);
+  bool enviadoRest = httpPOSTJson(URL_ACK, body, resp);
+
+  if (!enviadoMqtt && !enviadoRest) {
+    Serial.println("ACK no pudo entregarse ni por MQTT ni por REST.");
+  }
 }
 
 void mirrorDesiredStates(JsonArray arr) {
@@ -807,6 +1025,14 @@ void executeCommand(JsonObject cmd) {
   String tipo = cmd["tipo"] | "";
  if (nonce.length() == 0) return;
 
+  // El mismo comando puede aparecer por MQTT y posteriormente por REST /sync.
+  // El nonce hace que el accionamiento sea idempotente.
+  if (nonceYaEjecutado(nonce)) {
+    Serial.println("Comando duplicado ignorado; se reenvía ACK.");
+    sendAck(nonce, true);
+    return;
+  }
+
   if (tipo != "set_estado") {
     sendAck(nonce, false, "tipo_no_soportado:" + tipo);
     return;
@@ -830,6 +1056,8 @@ void executeCommand(JsonObject cmd) {
 
   bool on = estado["on"] | false;
   String accion = payload["accion"] | estado["accion"] | "set_estado";
+
+  registrarNonceEjecutado(nonce);
 
   if (!on) {
     if (feedAction.active && feedAction.actuatorCodigo == a->codigo) {
@@ -996,6 +1224,11 @@ void readSensors() {
 
 void postLecturas() {
   DynamicJsonDocument doc(4096);
+  doc["uid"] = MODULO_UID;
+  doc["codigo"] = MODULO_CODIGO;
+  doc["fw"] = FW_VERSION;
+  if (WiFi.status() == WL_CONNECTED) doc["rssi"] = WiFi.RSSI();
+
   JsonArray arr = doc.createNestedArray("lecturas");
   String ts = nowIso();
 
@@ -1030,8 +1263,12 @@ void postLecturas() {
   Serial.println("JSON lecturas:");
   Serial.println(body);
 
-  String resp;
-  httpPOSTJson(URL_LECTURAS, body, resp);
+  bool enviadoMqtt = mqttPublishJson(TOPIC_TELEMETRY, body, false);
+
+  if (!enviadoMqtt) {
+    String resp;
+    httpPOSTJson(URL_LECTURAS, body, resp);
+  }
 }
 
 void setup() {
@@ -1039,6 +1276,21 @@ void setup() {
   delay(300);
 
   analogSetAttenuation(ADC_11db);
+
+  loadNonceHistory();
+
+  mqttClientId = String("mecacuy-") + MODULO_CODIGO + "-" + String((uint32_t)(ESP.getEfuseMac() & 0xFFFFFFFF), HEX);
+  mqttOfflinePayload = String("{\"status\":\"offline\",\"uid\":\"") + MODULO_UID + "\",\"codigo\":\"" + MODULO_CODIGO + "\"}";
+
+  mqttClient
+    .setServer(MQTT_HOST, MQTT_PORT)
+    .setClientId(mqttClientId.c_str())
+    .setCredentials(MQTT_USER, MQTT_PASS)
+    .setKeepAlive(30)
+    .setWill(TOPIC_STATUS.c_str(), 1, true, mqttOfflinePayload.c_str())
+    .onConnect(onMqttConnect)
+    .onDisconnect(onMqttDisconnect)
+    .onMessage(onMqttMessage);
 
   WiFi.mode(WIFI_STA);
   WiFi.begin(WIFI_SSID, WIFI_PASS);
@@ -1056,6 +1308,7 @@ void setup() {
     Serial.println("WiFi OK");
     Serial.println(WiFi.localIP());
     initNTP();
+    ensureMqtt();
   } else {
     Serial.println("WiFi no conectado. Se intentará reconectar.");
   }
@@ -1100,6 +1353,7 @@ void setup() {
 
 void loop() {
   ensureWiFi();
+  ensureMqtt();
 
   if (WiFi.status() == WL_CONNECTED && !timeReady) {
     initNTP();

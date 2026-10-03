@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Panel;
 
+use App\Services\MqttBridgeService;
 use App\Http\Controllers\Controller;
 use App\Models\Actuador;
 use App\Models\Modulo;
@@ -230,7 +231,7 @@ class ActuadorController extends Controller
 
     private function crearComandoManual(Actuador $actuador, array $estado, array $extra, $ejecutarEn = null): void
     {
-        DB::table('comandos_iot')->insert([
+        $comandoId = DB::table('comandos_iot')->insertGetId([
             'modulo_id' => $actuador->modulo_id,
             'actuador_id' => $actuador->id,
             'tipo' => 'set_estado',
@@ -246,6 +247,10 @@ class ActuadorController extends Controller
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+
+        DB::afterCommit(function () use ($comandoId) {
+            app(MqttBridgeService::class)->despacharComando((int) $comandoId);
+        });
     }
 
     private function mensajeManual(string $accion, array $data): string

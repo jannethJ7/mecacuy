@@ -365,7 +365,13 @@ class MotorProgramaciones
             'expira_en' => now()->addMinutes(5),
         ]);
 
-        return (int) $comando->id;
+        $comandoId = (int) $comando->id;
+
+        DB::afterCommit(function () use ($comandoId) {
+            app(MqttBridgeService::class)->despacharComando($comandoId);
+        });
+
+        return $comandoId;
     }
 
 

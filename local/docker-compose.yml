@@ -1,0 +1,32 @@
+services:
+  emqx:
+    image: emqx/emqx:latest
+    container_name: mecacuy-emqx
+    restart: unless-stopped
+    hostname: node1.emqx.com
+    environment:
+      EMQX_NODE_NAME: emqx@node1.emqx.com
+    ports:
+      - "1883:1883"   # MQTT
+      - "8083:8083"   # MQTT over WebSocket
+      - "8883:8883"   # MQTTS (futuro)
+      - "18083:18083" # Dashboard EMQX
+    volumes:
+      - emqx-data:/opt/emqx/data
+      - emqx-log:/opt/emqx/log
+
+  mediamtx:
+    image: bluenviron/mediamtx:latest
+    container_name: mecacuy-mediamtx
+    restart: unless-stopped
+    ports:
+      - "8554:8554/tcp"   # RTSP
+      - "8888:8888/tcp"   # HLS
+      - "8889:8889/tcp"   # WebRTC signaling / HTTP
+      - "8189:8189/udp"   # WebRTC media
+    volumes:
+      - ../streaming/mediamtx.yml:/mediamtx.yml:ro
+
+volumes:
+  emqx-data:
+  emqx-log:

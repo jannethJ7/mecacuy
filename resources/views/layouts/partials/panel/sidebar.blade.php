@@ -32,6 +32,13 @@
             'roles' => ['admin', 'operador'],
         ],
         [
+            'label' => 'Cámaras',
+            'route' => 'panel.camaras.index',
+            'active' => 'panel.camaras.*',
+            'icon' => 'ri-camera-3-line',
+            'roles' => ['admin', 'operador', 'lector'],
+        ],
+        [
             'label' => 'Lecturas',
             'route' => 'panel.lecturas.index',
             'active' => 'panel.lecturas.*',
