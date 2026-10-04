@@ -147,8 +147,7 @@
 
     <div class="jaula-header">
         <div>
-            <h1>{{ $modulo->nombre ?: $modulo->codigo }}</h1>
-
+            
             <div class="jaula-status-row">
                 <span class="status-dot {{ $estadoClass }}"></span>
                 <span>{{ $estadoTexto }}</span>
