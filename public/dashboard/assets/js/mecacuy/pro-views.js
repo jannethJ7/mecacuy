@@ -76,11 +76,16 @@
 
         const rect = canvas.getBoundingClientRect();
         const dpr = window.devicePixelRatio || 1;
-        const width = Math.max(320, rect.width);
-        const height = Number(canvas.getAttribute('height')) || 220;
+        const width = Math.max(1, rect.width);
+        // El atributo height pasa a ser la resolucion interna; no reutilizarlo al redibujar.
+        const height = Number(canvas.dataset.chartHeight) ||
+            Number(canvas.getAttribute('height')) || 220;
+        canvas.dataset.chartHeight = String(height);
+        canvas.style.height = `${height}px`;
+        canvas.style.display = 'block';
 
-        canvas.width = width * dpr;
-        canvas.height = height * dpr;
+        canvas.width = Math.round(width * dpr);
+        canvas.height = Math.round(height * dpr);
         ctx.scale(dpr, dpr);
         ctx.clearRect(0, 0, width, height);
 
