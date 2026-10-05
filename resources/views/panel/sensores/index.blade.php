@@ -1,6 +1,7 @@
 @extends('layouts.panel')
 
 @include('panel._partials.pro-assets')
+@include('panel._partials.compact-assets')
 
 @section('title', 'Sensores')
 @section('page-title', 'Sensores')
@@ -13,7 +14,7 @@
     $items = $sensores instanceof \Illuminate\Pagination\AbstractPaginator ? $sensores->getCollection() : collect($sensores ?? []);
 @endphp
 
-<div class="mc-pro-page">
+<div class="mc-pro-page mc-compact-page">
     @include('panel._partials.flash')
 
     @include('panel._partials.page-header', [
@@ -26,20 +27,31 @@
         'buttonRoles' => ['admin']
     ])
 
-    <section class="mc-pro-toolbar">
+    <form method="GET" action="{{ route('panel.sensores.index') }}" class="mc-pro-toolbar mc-compact-toolbar">
         <label class="mc-pro-search">
-            <i class="ri-search-line"></i>
-            <input type="search" placeholder="Buscar sensor, código, módulo o tipo..." data-mc-search="#sensoresList">
+            <i class="ri-search-line" aria-hidden="true"></i>
+            <input type="search" name="buscar" value="{{ request('buscar') }}" aria-label="Buscar registros" placeholder="Buscar nombre, código, módulo o tipo...">
         </label>
-
+        <label class="mc-compact-select">Módulo
+            <select name="modulo_id">
+                <option value="">Todos los módulos</option>
+                @foreach($modulos as $modulo)
+                    <option value="{{ $modulo->id }}" @selected((string)request('modulo_id') === (string)$modulo->id)>{{ $modulo->codigo }} · {{ $modulo->nombre }}</option>
+                @endforeach
+            </select>
+        </label>
+        <label class="mc-compact-select">Estado
+            <select name="estado"><option value="">Todos</option><option value="activo" @selected(request("estado") === "activo")>Activos</option><option value="inactivo" @selected(request("estado") === "inactivo")>Inactivos</option></select>
+        </label>
         <div class="mc-pro-toolbar-actions">
-            <button type="button" class="mc-pro-chip is-active" data-mc-filter="#sensoresList" data-filter-value="all">Todos</button>
-            <button type="button" class="mc-pro-chip" data-mc-filter="#sensoresList" data-filter-value="activo">Activos</button>
-            <button type="button" class="mc-pro-chip" data-mc-filter="#sensoresList" data-filter-value="inactivo">Inactivos</button>
+            <button type="submit" class="mc-pro-btn mc-pro-btn-soft"><i class="ri-filter-line" aria-hidden="true"></i> Filtrar</button>
+            @if(request()->filled('buscar') || request()->filled('modulo_id') || request()->filled('estado'))
+                <a href="{{ route('panel.sensores.index') }}" class="mc-pro-btn mc-pro-btn-ghost">Limpiar</a>
+            @endif
         </div>
-    </section>
+    </form>
 
-    <div id="sensoresList" class="mc-pro-sensor-grid">
+    <div id="sensoresList" class="mc-compact-list">
         @forelse($items as $sensor)
             @php
                 $activo = (bool)($sensor->activo ?? true);
@@ -57,8 +69,10 @@
                     </span>
                 </div>
 
+                <div class="mc-compact-identity">
                 <h3>{{ $sensor->nombre }}</h3>
                 <p>{{ $sensor->codigo }} · {{ $sensor->modulo->codigo ?? 'Sin módulo' }}</p>
+                </div>
 
                 <div class="mc-pro-reading">
                     <strong>{{ $value }}</strong>
@@ -72,7 +86,7 @@
                     </div>
                     <div>
                         <small>Última lectura</small>
-                        <strong>{{ $sensor->valor_actual_en ? \Carbon\Carbon::parse($sensor->valor_actual_en)->diffForHumans() : 'Sin datos' }}</strong>
+                        <strong>{{ $sensor->valor_actual_en ? \Carbon\Carbon::parse($sensor->valor_actual_en)->locale('es')->diffForHumans() : 'Sin datos' }}</strong>
                     </div>
                     <div>
                         <small>GPIO</small>
@@ -97,7 +111,7 @@
                         <form method="POST" action="{{ route('panel.sensores.destroy', $sensor) }}" data-mc-confirm="¿Eliminar este sensor?">
                             @csrf
                             @method('DELETE')
-                            <button class="mc-pro-icon-danger"><i class="ri-delete-bin-line"></i></button>
+                            <button type="submit" class="mc-pro-icon-danger" aria-label="Eliminar registro" title="Eliminar"><i class="ri-delete-bin-line"></i></button>
                         </form>
                     @endif
                 </div>

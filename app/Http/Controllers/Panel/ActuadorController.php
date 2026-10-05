@@ -19,6 +19,13 @@ class ActuadorController extends Controller
     public function index(Request $request): View
     {
         $actuadores = Actuador::with('modulo')
+            ->when(in_array($request->input('estado'), ['on', 'off'], true), function ($q) use ($request) {
+                if ($request->input('estado') === 'on') {
+                    $q->where('estado_deseado->on', true);
+                } else {
+                    $q->where(fn ($estado) => $estado->where('estado_deseado->on', false)->orWhereNull('estado_deseado->on'));
+                }
+            })
             ->when($request->filled('modulo_id'), fn ($q) => $q->where('modulo_id', $request->integer('modulo_id')))
             ->when($request->filled('tipo'), fn ($q) => $q->where('tipo', $request->string('tipo')))
             ->when($request->filled('buscar'), function ($query) use ($request) {
@@ -26,11 +33,12 @@ class ActuadorController extends Controller
                 $query->where(function ($q) use ($buscar) {
                     $q->where('codigo', 'like', "%{$buscar}%")
                       ->orWhere('nombre', 'like', "%{$buscar}%")
-                      ->orWhere('tipo', 'like', "%{$buscar}%");
+                      ->orWhere('tipo', 'like', "%{$buscar}%")
+                      ->orWhereHas('modulo', fn ($modulo) => $modulo->where('codigo', 'like', "%{$buscar}%")->orWhere('nombre', 'like', "%{$buscar}%"));
                 });
             })
             ->latest('id')
-            ->paginate(10)
+            ->paginate(20)
             ->withQueryString();
 
         $modulos = Modulo::orderBy('codigo')->get();

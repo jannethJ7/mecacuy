@@ -15,18 +15,20 @@ class CamaraController extends Controller
     public function index(Request $request): View
     {
         $camaras = Camara::with('modulo')
+            ->when(in_array($request->input('estado'), ['activo', 'inactivo'], true), fn ($q) => $q->where('habilitada', $request->input('estado') === 'activo'))
             ->when($request->filled('modulo_id'), fn ($q) => $q->where('modulo_id', $request->integer('modulo_id')))
             ->when($request->filled('buscar'), function ($query) use ($request) {
                 $buscar = $request->string('buscar');
                 $query->where(function ($q) use ($buscar) {
                     $q->where('codigo', 'like', "%{$buscar}%")
                         ->orWhere('nombre', 'like', "%{$buscar}%")
-                        ->orWhere('stream_key', 'like', "%{$buscar}%");
+                        ->orWhere('stream_key', 'like', "%{$buscar}%")
+                      ->orWhereHas('modulo', fn ($modulo) => $modulo->where('codigo', 'like', "%{$buscar}%")->orWhere('nombre', 'like', "%{$buscar}%"));
                 });
             })
             ->orderBy('modulo_id')
             ->orderBy('codigo')
-            ->paginate(12)
+            ->paginate(20)
             ->withQueryString();
 
         $modulos = Modulo::orderBy('codigo')->get();

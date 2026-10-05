@@ -14,6 +14,7 @@ class SensorController extends Controller
     public function index(Request $request): View
     {
         $sensores = Sensor::with('modulo')
+            ->when(in_array($request->input('estado'), ['activo', 'inactivo'], true), fn ($q) => $q->where('activo', $request->input('estado') === 'activo'))
             ->when($request->filled('modulo_id'), fn ($q) => $q->where('modulo_id', $request->integer('modulo_id')))
             ->when($request->filled('tipo'), fn ($q) => $q->where('tipo', $request->string('tipo')))
             ->when($request->filled('buscar'), function ($query) use ($request) {
@@ -21,11 +22,12 @@ class SensorController extends Controller
                 $query->where(function ($q) use ($buscar) {
                     $q->where('codigo', 'like', "%{$buscar}%")
                       ->orWhere('nombre', 'like', "%{$buscar}%")
-                      ->orWhere('tipo', 'like', "%{$buscar}%");
+                      ->orWhere('tipo', 'like', "%{$buscar}%")
+                      ->orWhereHas('modulo', fn ($modulo) => $modulo->where('codigo', 'like', "%{$buscar}%")->orWhere('nombre', 'like', "%{$buscar}%"));
                 });
             })
             ->latest('id')
-            ->paginate(10)
+            ->paginate(20)
             ->withQueryString();
 
         $modulos = Modulo::orderBy('codigo')->get();

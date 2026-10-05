@@ -12,19 +12,19 @@
 const char* WIFI_SSID = "TU_WIFI";
 const char* WIFI_PASS = "TU_PASSWORD_WIFI";
 
-const char* BASE_URL      = "https://mecacuy-production.up.railway.app";
+const char* BASE_URL      = "https://claveles.gytelcom.com";
 const char* MODULO_UID    = "ESP32-MOD-001";
 const char* MODULO_CODIGO = "MOD-001";
 const char* DEVICE_KEY    = "TU_DEVICE_KEY_REGENERADA";
-const char* FW_VERSION    = "mecacuy-esp32-hibrido-2.0.0";
+const char* FW_VERSION    = "mecacuy-esp32-hibrido-2.1.0";
 
 // ========= MQTT (EMQX) =========
-// Empieza con false: REST sigue funcionando. Cuando el broker esté listo,
-// completa host/credenciales y cambia a true.
-const bool MQTT_ENABLED = false;
-const char* MQTT_HOST = "192.168.1.100";
-const uint16_t MQTT_PORT = 1883;
-const char* MQTT_USER = "mod001";
+// Conexion TLS a EMQX Cloud; REST se conserva como respaldo.
+// Completa MQTT_PASS antes de cargar; no publiques secretos en Git.
+const bool MQTT_ENABLED = true;
+const char* MQTT_HOST = "ddb1331f.ala.eu-central-1.emqxsl.com";
+const uint16_t MQTT_PORT = 8883;
+const char* MQTT_USER = "esp32_mod001";
 const char* MQTT_PASS = "CAMBIAR_PASSWORD_MQTT";
 const char* MQTT_TOPIC_PREFIX = "mecacuy";
 
@@ -32,7 +32,33 @@ String URL_SYNC     = String(BASE_URL) + "/api/iot/v1/sync";
 String URL_LECTURAS = String(BASE_URL) + "/api/iot/v1/lecturas";
 String URL_ACK      = String(BASE_URL) + "/api/iot/v1/ack";
 
-espMqttClient mqttClient;
+// CA publica descargada del despliegue EMQX Cloud.
+const char MQTT_ROOT_CA[] = R"PEM(
+-----BEGIN CERTIFICATE-----
+MIIDjjCCAnagAwIBAgIQAzrx5qcRqaC7KGSxHQn65TANBgkqhkiG9w0BAQsFADBh
+MQswCQYDVQQGEwJVUzEVMBMGA1UEChMMRGlnaUNlcnQgSW5jMRkwFwYDVQQLExB3
+d3cuZGlnaWNlcnQuY29tMSAwHgYDVQQDExdEaWdpQ2VydCBHbG9iYWwgUm9vdCBH
+MjAeFw0xMzA4MDExMjAwMDBaFw0zODAxMTUxMjAwMDBaMGExCzAJBgNVBAYTAlVT
+MRUwEwYDVQQKEwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5j
+b20xIDAeBgNVBAMTF0RpZ2lDZXJ0IEdsb2JhbCBSb290IEcyMIIBIjANBgkqhkiG
+9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuzfNNNx7a8myaJCtSnX/RrohCgiN9RlUyfuI
+2/Ou8jqJkTx65qsGGmvPrC3oXgkkRLpimn7Wo6h+4FR1IAWsULecYxpsMNzaHxmx
+1x7e/dfgy5SDN67sH0NO3Xss0r0upS/kqbitOtSZpLYl6ZtrAGCSYP9PIUkY92eQ
+q2EGnI/yuum06ZIya7XzV+hdG82MHauVBJVJ8zUtluNJbd134/tJS7SsVQepj5Wz
+tCO7TG1F8PapspUwtP1MVYwnSlcUfIKdzXOS0xZKBgyMUNGPHgm+F6HmIcr9g+UQ
+vIOlCsRnKPZzFBQ9RnbDhxSJITRNrw9FDKZJobq7nMWxM4MphQIDAQABo0IwQDAP
+BgNVHRMBAf8EBTADAQH/MA4GA1UdDwEB/wQEAwIBhjAdBgNVHQ4EFgQUTiJUIBiV
+5uNu5g/6+rkS7QYXjzkwDQYJKoZIhvcNAQELBQADggEBAGBnKJRvDkhj6zHd6mcY
+1Yl9PMWLSn/pvtsrF9+wX3N3KjITOYFnQoQj8kVnNeyIv/iPsGEMNKSuIEyExtv4
+NeF22d+mQrvHRAiGfzZ0JFrabA0UWTW98kndth/Jsw1HKj2ZL7tcu7XUIOGZX1NG
+Fdtom/DzMNU+MeKNhJ7jitralj41E6Vf8PlwUHBHQRFXGU7Aj64GxJUTFy8bJZ91
+8rGOmaFvE7FBcf6IKshPECBV1/MUReXgRPTqh5Uykw7+U0b6LJ3/iyK5S9kJRaTe
+pLiaWN0bfVKfjllDiIGknibVb63dDcY3fe0Dkhvld1927jyNxF1WW6LZZm6zNTfl
+MrY=
+-----END CERTIFICATE-----
+)PEM";
+
+espMqttClientSecure mqttClient;
 String mqttClientId = "";
 String mqttOfflinePayload = "";
 String mqttRxBuffer = "";
@@ -711,7 +737,7 @@ void onMqttDisconnect(espMqttClientTypes::DisconnectReason reason) {
 }
 
 void ensureMqtt() {
-  if (!MQTT_ENABLED || WiFi.status() != WL_CONNECTED) return;
+  if (!MQTT_ENABLED || WiFi.status() != WL_CONNECTED || !timeReady) return;
   if (mqttClient.connected()) return;
   if (!mqttClient.disconnected()) return;
 
@@ -1283,6 +1309,7 @@ void setup() {
   mqttOfflinePayload = String("{\"status\":\"offline\",\"uid\":\"") + MODULO_UID + "\",\"codigo\":\"" + MODULO_CODIGO + "\"}";
 
   mqttClient
+    .setCACert(MQTT_ROOT_CA)
     .setServer(MQTT_HOST, MQTT_PORT)
     .setClientId(mqttClientId.c_str())
     .setCredentials(MQTT_USER, MQTT_PASS)

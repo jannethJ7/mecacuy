@@ -1,6 +1,7 @@
 @extends('layouts.panel')
 
 @include('panel._partials.pro-assets')
+@include('panel._partials.compact-assets')
 
 @section('title', 'Actuadores')
 @section('page-title', 'Actuadores')
@@ -14,7 +15,7 @@
     $modo = $modo ?? ($config['modo_global'] ?? 'manual');
 @endphp
 
-<div class="mc-pro-page">
+<div class="mc-pro-page mc-compact-page">
     @include('panel._partials.flash')
 
     @include('panel._partials.page-header', [
@@ -42,20 +43,31 @@
         @endif
     </section>
 
-    <section class="mc-pro-toolbar">
+    <form method="GET" action="{{ route('panel.actuadores.index') }}" class="mc-pro-toolbar mc-compact-toolbar">
         <label class="mc-pro-search">
-            <i class="ri-search-line"></i>
-            <input type="search" placeholder="Buscar actuador, módulo, código o tipo..." data-mc-search="#actuadoresList">
+            <i class="ri-search-line" aria-hidden="true"></i>
+            <input type="search" name="buscar" value="{{ request('buscar') }}" aria-label="Buscar registros" placeholder="Buscar nombre, código, módulo o tipo...">
         </label>
-
+        <label class="mc-compact-select">Módulo
+            <select name="modulo_id">
+                <option value="">Todos los módulos</option>
+                @foreach($modulos as $modulo)
+                    <option value="{{ $modulo->id }}" @selected((string)request('modulo_id') === (string)$modulo->id)>{{ $modulo->codigo }} · {{ $modulo->nombre }}</option>
+                @endforeach
+            </select>
+        </label>
+        <label class="mc-compact-select">Estado
+            <select name="estado"><option value="">Todos</option><option value="on" @selected(request("estado") === "on")>ON deseado</option><option value="off" @selected(request("estado") === "off")>OFF deseado</option></select>
+        </label>
         <div class="mc-pro-toolbar-actions">
-            <button type="button" class="mc-pro-chip is-active" data-mc-filter="#actuadoresList" data-filter-value="all">Todos</button>
-            <button type="button" class="mc-pro-chip" data-mc-filter="#actuadoresList" data-filter-value="on">ON</button>
-            <button type="button" class="mc-pro-chip" data-mc-filter="#actuadoresList" data-filter-value="off">OFF</button>
+            <button type="submit" class="mc-pro-btn mc-pro-btn-soft"><i class="ri-filter-line" aria-hidden="true"></i> Filtrar</button>
+            @if(request()->filled('buscar') || request()->filled('modulo_id') || request()->filled('estado'))
+                <a href="{{ route('panel.actuadores.index') }}" class="mc-pro-btn mc-pro-btn-ghost">Limpiar</a>
+            @endif
         </div>
-    </section>
+    </form>
 
-    <div id="actuadoresList" class="mc-pro-actuator-grid">
+    <div id="actuadoresList" class="mc-compact-list">
         @forelse($items as $actuador)
             @php
                 $deseado = is_array($actuador->estado_deseado)
@@ -82,8 +94,10 @@
                     </span>
                 </div>
 
+                <div class="mc-compact-identity">
                 <h3>{{ $actuador->nombre }}</h3>
                 <p>{{ $actuador->codigo }} · {{ $actuador->modulo->codigo ?? 'Sin módulo' }}</p>
+                </div>
 
                 <div class="mc-pro-mini-grid">
                     <div>
@@ -100,7 +114,7 @@
                     </div>
                     <div>
                         <small>Cambiado</small>
-                        <strong>{{ $actuador->cambiado_en ? \Carbon\Carbon::parse($actuador->cambiado_en)->diffForHumans() : '—' }}</strong>
+                        <strong>{{ $actuador->cambiado_en ? \Carbon\Carbon::parse($actuador->cambiado_en)->locale('es')->diffForHumans() : '—' }}</strong>
                     </div>
                 </div>
 
@@ -131,7 +145,7 @@
                     <small class="mc-pro-help">
                         {{ $modo !== 'manual'
                             ? 'Bloqueado por modo automático.'
-                            : 'Para control AJAX agrega la ruta panel.actuadores.manual.' }}
+                            : 'No tienes permiso para el control manual.' }}
                     </small>
                 @endif
 
@@ -146,7 +160,7 @@
                         <form method="POST" action="{{ route('panel.actuadores.destroy', $actuador) }}" data-mc-confirm="¿Eliminar este actuador?">
                             @csrf
                             @method('DELETE')
-                            <button class="mc-pro-icon-danger"><i class="ri-delete-bin-line"></i></button>
+                            <button type="submit" class="mc-pro-icon-danger" aria-label="Eliminar registro" title="Eliminar"><i class="ri-delete-bin-line"></i></button>
                         </form>
                     @endif
                 </div>

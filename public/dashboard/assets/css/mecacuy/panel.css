@@ -6526,7 +6526,7 @@ html[data-mc-theme="light"] .mc-pro-form-card,
 html[data-mc-theme="light"] .mc-pro-module-card,
 html[data-mc-theme="light"] .mc-pro-sensor-card,
 html[data-mc-theme="light"] .mc-pro-actuator-card {
-    background: #ffffff42 !important;
+    background: #ffffffa8 !important;
     border-color: #5b6164 !important;
     box-shadow: 0 6px 24px rgba(28, 53, 70, .06) !important;
 }
