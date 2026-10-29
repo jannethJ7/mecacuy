@@ -105,6 +105,9 @@ Route::middleware(['auth'])->group(function () {
         | Control manual de actuadores
         |--------------------------------------------------------------------------
         */
+        Route::get('actuadores/{actuador}/verificacion', [ActuadorController::class, 'verificacion'])
+            ->middleware('role:admin,operador,lector')->name('actuadores.verificacion');
+
         Route::post('actuadores/{actuador}/manual', [ActuadorController::class, 'manual'])
             ->middleware('role:admin,operador')
             ->name('actuadores.manual');

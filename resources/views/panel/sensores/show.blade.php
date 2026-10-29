@@ -12,8 +12,9 @@
         <div class="mc-pro-mini-grid">
             <div><small>Tipo</small><strong>{{ $sensor->tipo }}</strong></div>
             <div><small>Unidad</small><strong>{{ $sensor->unidad ?? '—' }}</strong></div>
-            <div><small>GPIO</small><strong>{{ is_null($sensor->gpio_pin) ? '—' : 'GPIO '.$sensor->gpio_pin }}</strong></div>
-            <div><small>Valor actual</small><strong>{{ $sensor->valor_actual ?? '—' }}</strong></div>
+            <div><small>{{ \App\Services\NivelAgua::esSensor($sensor) ? 'Asignación' : 'GPIO' }}</small><strong>{{ \App\Services\NivelAgua::esSensor($sensor) ? 'Conjunto del tanque de 4 niveles' : (is_null($sensor->gpio_pin) ? '—' : 'GPIO '.$sensor->gpio_pin) }}</strong></div>
+            <div><small>Valor actual</small><strong>{{ \App\Services\SupervisionCalefaccion::esSensor($sensor)
+                ? app(\App\Services\SupervisionCalefaccion::class)->paraSensor($sensor)['etiqueta'] : ($sensor->valor_actual ?? '—') }}</strong></div>
             <div><small>Última medición</small><strong>{{ $sensor->valor_actual_en ?? '—' }}</strong></div>
         </div>
         <div class="mc-pro-card-actions">
@@ -31,7 +32,8 @@
                 @forelse($lecturas as $lectura)
                     <tr>
                         <td>{{ $lectura->medido_en }}</td>
-                        <td>{{ $lectura->valor }} {{ $sensor->unidad }}</td>
+                        <td>{{ \App\Services\SupervisionCalefaccion::esSensor($sensor)
+                            ? \App\Services\SupervisionCalefaccion::textoLectura($lectura->valor, $lectura->calidad) : $lectura->valor }} {{ $sensor->unidad }}</td>
                         <td>{{ $lectura->calidad }}</td>
                     </tr>
                 @empty

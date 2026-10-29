@@ -14,7 +14,7 @@
         @error('modulo_id') <small>{{ $message }}</small> @enderror
     </div>
 
-    <div class="mc-pro-field">
+    <div class="mc-pro-field" data-agua-codigo>
         <label for="field_codigo">Código</label>
         <input id="field_codigo" name="codigo" value="{{ old('codigo', $sensor->codigo ?? '') }}" required placeholder="S_TEMP">
         @error('codigo') <small>{{ $message }}</small> @enderror
@@ -29,18 +29,21 @@
     <div class="mc-pro-field">
         <label for="field_tipo">Tipo</label>
         <select id="field_tipo" name="tipo">
-            @foreach(['temperatura','humedad','calidad_aire','nivel','peso','otro'] as $tipo)
-                <option value="{{ $tipo }}" @selected(old('tipo', $sensor->tipo ?? '') == $tipo)>{{ ucfirst(str_replace('_',' ', $tipo)) }}</option>
+            @foreach(['temperatura','humedad','calidad_aire','nivel_agua','peso','verificacion_calefaccion','otro'] as $tipo)
+                <option value="{{ $tipo }}" @selected(old('tipo', $sensor->tipo ?? '') == $tipo)>{{ $tipo === 'nivel_agua' ? 'Nivel de agua del tanque' : ucfirst(str_replace('_',' ', $tipo)) }}</option>
             @endforeach
+            @if(old('tipo', $sensor->tipo ?? '') === 'nivel')
+                <option value="nivel" selected>Nivel (registro anterior)</option>
+            @endif
         </select>
     </div>
 
-    <div class="mc-pro-field">
+    <div class="mc-pro-field" data-agua-unidad>
         <label for="field_unidad">Unidad</label>
         <input id="field_unidad" name="unidad" value="{{ old('unidad', $sensor->unidad ?? '') }}" placeholder="°C, %, ppm">
     </div>
 
-    <div class="mc-pro-field">
+    <div class="mc-pro-field" data-agua-gpio>
         <label for="field_gpio_pin">GPIO</label>
         <input id="field_gpio_pin" type="number" name="gpio_pin" value="{{ old('gpio_pin', $sensor->gpio_pin ?? '') }}" min="0" max="39" placeholder="Ej: 4">
         <small>Pin físico usado por el ESP32 para este sensor. Déjalo vacío si es un sensor lógico.</small>
@@ -57,6 +60,9 @@
 
     
 </div>
+
+@include('panel.sensores._nivel-agua')
+@include('panel.sensores._supervision-calefaccion')
 
 <div class="mc-pro-form-actions">
     <a class="mc-pro-btn mc-pro-btn-ghost" href="{{ route('panel.sensores.index') }}">Cancelar</a>

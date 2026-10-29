@@ -9,6 +9,13 @@ use Illuminate\Support\Facades\Schedule;
 use App\Models\Lectura;
 use Illuminate\Support\Carbon;
 
+Artisan::command('mecacuy:supervision-evaluar', function (\App\Services\MotorAlertasAutomaticas $motor) {
+    $resultado = $motor->evaluarTodos();
+    $this->info(json_encode($resultado, JSON_UNESCAPED_UNICODE));
+    return ($resultado['ok'] ?? false) ? 0 : 1;
+})->purpose('Evalúa alertas y pérdida de verificación aunque deje de llegar telemetría.');
+Schedule::command('mecacuy:supervision-evaluar')->everyMinute()->withoutOverlapping();
+
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');

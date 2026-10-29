@@ -75,7 +75,8 @@
                 </div>
 
                 <div class="mc-pro-reading">
-                    <strong>{{ $value }}</strong>
+                    <strong>{{ \App\Services\SupervisionCalefaccion::esSensor($sensor)
+                        ? app(\App\Services\SupervisionCalefaccion::class)->paraSensor($sensor)['etiqueta'] : $value }}</strong>
                     <span>{{ $sensor->unidad ?? '' }}</span>
                 </div>
 
@@ -89,8 +90,8 @@
                         <strong>{{ $sensor->valor_actual_en ? \Carbon\Carbon::parse($sensor->valor_actual_en)->locale('es')->diffForHumans() : 'Sin datos' }}</strong>
                     </div>
                     <div>
-                        <small>GPIO</small>
-                        <strong>{{ is_null($sensor->gpio_pin) ? '—' : 'GPIO '.$sensor->gpio_pin }}</strong>
+                        <small>{{ \App\Services\NivelAgua::esSensor($sensor) ? 'Asignación' : 'GPIO' }}</small>
+                        <strong>{{ \App\Services\NivelAgua::esSensor($sensor) ? 'Conjunto del tanque' : (is_null($sensor->gpio_pin) ? '—' : 'GPIO '.$sensor->gpio_pin) }}</strong>
                     </div>
                 </div>
 

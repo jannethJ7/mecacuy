@@ -15,6 +15,7 @@
             <div><small>Activo</small><strong>{{ $actuador->activo ? 'Sí' : 'No' }}</strong></div>
             <div><small>Invertido</small><strong>{{ $actuador->invertido ? 'Sí' : 'No' }}</strong></div>
         </div>
+        @include('panel._partials.verificacion-calefaccion', ['actuadorVerificado' => $actuador])
         <div class="mc-pro-card-actions">
             <a class="mc-pro-btn mc-pro-btn-ghost" href="{{ route('panel.actuadores.index') }}">Volver</a>
             <a class="mc-pro-btn mc-pro-btn-soft" href="{{ route('panel.actuadores.edit', $actuador) }}">Editar</a>

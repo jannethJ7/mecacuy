@@ -256,6 +256,34 @@ class MotorAlertasAutomaticas
         $activa = false;
         $detalle = [];
 
+        if (in_array($regla->tipo, ['calefaccion_no_apaga', 'calefaccion_no_enciende', 'calefaccion_sin_verificacion'], true)) {
+            $sensorModelo = $sensor ? \App\Models\Sensor::find($sensor->id) : null;
+            if (!$sensorModelo || !$actuador) {
+                return ['omitida' => true, 'motivo' => 'supervision_no_configurada'];
+            }
+            $estado = app(SupervisionCalefaccion::class)->paraSensor($sensorModelo, \App\Models\Actuador::find($actuador->id));
+            if (in_array($estado['codigo'], ['sin_calibrar', 'pendiente'], true)) {
+                return ['omitida' => true, 'motivo' => $estado['codigo']];
+            }
+            // Perder el sensor no prueba que una falla física anterior se resolvió.
+            if ($estado['codigo'] === 'sin_verificar' && $regla->tipo !== 'calefaccion_sin_verificacion') {
+                return ['omitida' => true, 'motivo' => 'medicion_no_valida'];
+            }
+            if ($regla->tipo === 'calefaccion_no_apaga' && !in_array($estado['codigo'], ['no_apaga', 'apagada'], true)) {
+                return ['omitida' => true, 'motivo' => 'requiere_apagado_verificado'];
+            }
+            $objetivo = match ($regla->tipo) {
+                'calefaccion_no_apaga' => 'no_apaga',
+                'calefaccion_no_enciende' => 'no_enciende',
+                default => 'sin_verificar',
+            };
+            return [
+                'activa' => $estado['codigo'] === $objetivo,
+                'mensaje' => $this->renderMensaje($regla, $modulo, $sensor, $actuador, null),
+                'contexto' => $contextoBase + ['verificacion' => $estado],
+            ];
+        }
+
         switch ($regla->tipo) {
             case 'arriba':
                 if ($valor === null || $regla->umbral_max === null) {
@@ -494,6 +522,26 @@ class MotorAlertasAutomaticas
             ->get();
 
         foreach ($sensores as $sensor) {
+            if (SupervisionCalefaccion::esSensor($sensor)) {
+                $meta = json_decode($sensor->meta ?? '{}', true) ?: [];
+                $actuadorId = DB::table('actuadores')->where('modulo_id', $moduloId)
+                    ->where('codigo', $meta['actuador_codigo'] ?? '')->value('id');
+                if (!$actuadorId) { continue; }
+                foreach ([
+                    ['calefaccion_no_apaga', 'critico', 'Falla de apagado de calefacción en {modulo}: {actuador} continúa consumiendo después de ordenar OFF.'],
+                    ['calefaccion_no_enciende', 'advertencia', 'Falla de encendido de calefacción en {modulo}: no se detecta consumo en {actuador}.'],
+                    ['calefaccion_sin_verificacion', 'advertencia', 'Sin verificación eléctrica válida de calefacción en {modulo}. Revisar sensor y comunicación.'],
+                ] as [$tipo, $severidad, $mensaje]) {
+                    if (DB::table('reglas_alerta')->where('sensor_id', $sensor->id)->where('tipo', $tipo)->exists()) { continue; }
+                    $this->upsertReglaAlerta([
+                        'modulo_id' => $moduloId, 'sensor_id' => $sensor->id, 'actuador_id' => $actuadorId,
+                        'tipo' => $tipo, 'umbral_min' => null, 'umbral_max' => null, 'sin_datos_min' => null,
+                        'severidad' => $severidad, 'plantilla_mensaje' => $mensaje,
+                        'enfriamiento_min' => 0, 'activo' => 1,
+                    ]);
+                }
+                continue;
+            }
             if ($sensor->codigo === 'S_TEMP' || $sensor->tipo === 'temperatura') {
                 $this->upsertReglaAlerta([
                     'modulo_id' => $moduloId,

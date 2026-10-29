@@ -18,7 +18,7 @@
 .mc-compact-page .mc-compact-identity h3,.mc-compact-camera h3 {font-size:14px;line-height:1.4;margin:0 0 3px;overflow-wrap:anywhere;color:var(--mc-text)}
 .mc-compact-page .mc-compact-identity p,.mc-compact-camera p {font-size:12px;line-height:1.4;margin:0;color:var(--mc-muted-solid);overflow-wrap:anywhere}
 .mc-compact-page .mc-pro-reading {margin:0;font-size:14px;display:flex;flex-wrap:wrap;gap:4px}
-.mc-compact-page .mc-pro-reading strong {font-size:19px}
+.mc-compact-page .mc-pro-reading strong {font-size:14px}
 .mc-compact-page .mc-pro-mini-grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin:0}
 .mc-compact-page .mc-pro-mini-grid>div {background:none;border:0;border-radius:0;padding:0;min-width:0}
 .mc-compact-page .mc-pro-mini-grid small {font-size:10px;color:var(--mc-muted-solid)}

@@ -80,7 +80,7 @@
     --mc-field-surface: #ffffff;
     --mc-table-success: #246b43;
     color-scheme: light;
-    --mc-green-dark: #f3f8fa;
+    --mc-green-dark: #4b4b4b57;
     --mc-green-dark-rgb: 243, 248, 250;
     --mc-green-rgb: 255, 255, 255;
     --mc-green-soft-rgb: 234, 242, 246;
@@ -111,6 +111,7 @@
     color-scheme: dark;
     --mc-text: #e8ecf4;
     --mc-muted-solid: #b2c2d4;
+    --mc-green-dark:#f6f6f659;
 }
 
 html[data-mc-theme] .mc-sidebar,

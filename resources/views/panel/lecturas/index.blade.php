@@ -9,8 +9,9 @@
 @section('content')
 @php
     $items = $lecturas instanceof \Illuminate\Pagination\AbstractPaginator ? $lecturas->getCollection() : collect($lecturas ?? []);
-    $chartLabels = $items->take(80)->reverse()->map(fn($l) => \Carbon\Carbon::parse($l->medido_en ?? $l->created_at)->format('H:i'))->values();
-    $chartValues = $items->take(80)->reverse()->map(fn($l) => (float) $l->valor)->values();
+    $itemsGraficables = $items->reject(fn ($l) => $l->sensor && \App\Services\SupervisionCalefaccion::esSensor($l->sensor));
+    $chartLabels = $itemsGraficables->take(80)->reverse()->map(fn($l) => \Carbon\Carbon::parse($l->medido_en ?? $l->created_at)->format('H:i'))->values();
+    $chartValues = $itemsGraficables->take(80)->reverse()->map(fn($l) => (float) $l->valor)->values();
 @endphp
 
 <div class="mc-pro-page">
@@ -66,6 +67,9 @@
                 </div>
             </div>
 
+            @if($itemsGraficables->isEmpty())
+                <p>La verificación eléctrica se consulta como estados en el historial.</p>
+            @else
             <canvas
                 class="mc-pro-chart"
                 height="220"
@@ -73,6 +77,7 @@
                 data-labels='@json($chartLabels)'
                 data-values='@json($chartValues)'
             ></canvas>
+            @endif
         </div>
 
         <div class="mc-pro-card">
@@ -87,7 +92,7 @@
 
             @if($ultima)
                 <div class="mc-pro-reading-big">
-                    <strong>{{ number_format((float) $ultima->valor, 2) }}</strong>
+                    <strong>{{ $ultima->sensor && \App\Services\SupervisionCalefaccion::esSensor($ultima->sensor) ? \App\Services\SupervisionCalefaccion::textoLectura($ultima->valor, $ultima->calidad) : number_format((float) $ultima->valor, 2) }}</strong>
                     <span>{{ $ultima->sensor->unidad ?? '' }}</span>
                 </div>
 
@@ -173,7 +178,8 @@
                             </td>
                             <td data-label="Módulo">{{ $lectura->sensor->modulo->codigo ?? '—' }}</td>
                             <td data-label="Valor">
-                                <strong class="mc-pro-table-value">{{ number_format((float) $lectura->valor, 3) }}</strong>
+                                <strong class="mc-pro-table-value">{{ $lectura->sensor && \App\Services\SupervisionCalefaccion::esSensor($lectura->sensor)
+                                    ? \App\Services\SupervisionCalefaccion::textoLectura($lectura->valor, $lectura->calidad) : number_format((float) $lectura->valor, 3) }}</strong>
                                 <small>{{ $lectura->sensor->unidad ?? '' }}</small>
                             </td>
                             <td data-label="Calidad">

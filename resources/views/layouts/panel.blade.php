@@ -108,13 +108,13 @@
                             </div>
 
                             <a href="{{ $configUrl }}" class="mc-dropdown-link">
-                                <span>⚙</span>
+                                <i class="ri-settings-3-line"></i>
                                 Configuración
                             </a>
 
                             @if(($rol ?? null) === 'admin' && Route::has('profile.edit'))
                                 <a href="{{ route('profile.edit') }}" class="mc-dropdown-link">
-                                    <span>🔑</span>
+                                    <i class="ri-key-fill"></i>
                                     Perfil y API keys
                                 </a>
                             @endif
@@ -123,7 +123,7 @@
                                 @csrf
 
                                 <button type="submit" class="mc-dropdown-link danger">
-                                    <span>↵</span>
+                                    <i class="ri-arrow-left-line"></i>
                                     Cerrar sesión
                                 </button>
                             </form>

@@ -97,6 +97,7 @@
                 <div class="mc-compact-identity">
                 <h3>{{ $actuador->nombre }}</h3>
                 <p>{{ $actuador->codigo }} · {{ $actuador->modulo->codigo ?? 'Sin módulo' }}</p>
+                @include('panel._partials.verificacion-calefaccion', ['actuadorVerificado' => $actuador])
                 </div>
 
                 <div class="mc-pro-mini-grid">

@@ -6,6 +6,8 @@
 #include <DHT.h>
 #include <time.h>
 #include <math.h>
+#include "SupervisionCalefaccion.h"
+#include "NivelAgua.h"
 
 // ========= CREDENCIALES DEL DISPOSITIVO =========
 // Completa estos valores antes de cargar el firmware. No subas secretos reales a Git.
@@ -16,7 +18,8 @@ const char* BASE_URL      = "https://claveles.gytelcom.com";
 const char* MODULO_UID    = "ESP32-MOD-001";
 const char* MODULO_CODIGO = "MOD-001";
 const char* DEVICE_KEY    = "TU_DEVICE_KEY_REGENERADA";
-const char* FW_VERSION    = "mecacuy-esp32-hibrido-2.1.0";
+const bool DEPURAR_CALIBRACION_CALEFACCION = false;
+const char* FW_VERSION    = "mecacuy-esp32-hibrido-2.3.0";
 
 // ========= MQTT (EMQX) =========
 // Conexion TLS a EMQX Cloud; REST se conserva como respaldo.
@@ -190,7 +193,7 @@ bool validGpio(int gpio) {
 }
 
 bool isOutputCapable(int gpio) {
-  if (!validGpio(gpio)) return false;
+  if (!validGpio(gpio) || Tanque::ocupado(gpio)) return false;
   if (gpio >= 34 && gpio <= 39) return false;
   if (gpio >= 6 && gpio <= 11) return false;
   return true;
@@ -409,7 +412,9 @@ String inferDriver(const String& codigo, const String& tipo, JsonObject meta) {
   String c = lowerStr(codigo);
   String t = lowerStr(tipo);
 
+  if (t == "nivel_agua" && c == "s_nivel") return "nivel_agua_fijo";
   if (c == "s_temp" || c == "s_hr") return "dht";
+  if (t == "verificacion_calefaccion" || c == "s_conf_calef") return "acs712_ac";
   if (c == "s_air" || t.indexOf("aire") >= 0) return "adc_ppm";
 
   if (c.indexOf("s_nivel_") >= 0 ||
@@ -499,6 +504,35 @@ bool parseSyncJson(const String& resp) {
   JsonObject cfg = doc["config"];
   modoGlobal = cfg["modo_global"] | "manual";
 
+  // Perfil probado en clavel.ino: cuatro pines fijos, una sola lectura S_NIVEL.
+  bool solicitaTanque = false, perfilTanqueValido = true;
+  unsigned cantidadTanques = 0;
+  for (JsonObject sensorJson : doc["sensores"].as<JsonArray>()) {
+    String tipoSensor = sensorJson["tipo"] | "";
+    if (tipoSensor != "nivel_agua" || !(sensorJson["activo"] | true)) continue;
+    solicitaTanque = true; ++cantidadTanques;
+    String codigoSensor = sensorJson["codigo"] | "";
+    String perfilSensor = sensorJson["meta"]["perfil"] | "";
+    if (codigoSensor != "S_NIVEL" || perfilSensor != "clavel_4_niveles") perfilTanqueValido = false;
+  }
+  if (solicitaTanque) {
+    for (JsonObject sensorJson : doc["sensores"].as<JsonArray>()) {
+      String tipoSensor = sensorJson["tipo"] | "";
+      int pinSensor = sensorJson["gpio_pin"].isNull() ? -1 : (int)sensorJson["gpio_pin"];
+      if (tipoSensor != "nivel_agua" && (sensorJson["activo"] | true) && Tanque::reservado(pinSensor)) perfilTanqueValido = false;
+    }
+    for (JsonObject actuadorJson : doc["actuadores"].as<JsonArray>()) {
+      int pinActuador = actuadorJson["gpio_pin"].isNull() ? -1 : (int)actuadorJson["gpio_pin"];
+      if (Tanque::reservado(pinActuador)) perfilTanqueValido = false;
+    }
+  }
+  Tanque::configurar(solicitaTanque, solicitaTanque && perfilTanqueValido && cantidadTanques == 1);
+  if (solicitaTanque) {
+    pinMode(Tanque::PIN_25, INPUT); pinMode(Tanque::PIN_50, INPUT);
+    pinMode(Tanque::PIN_75, INPUT); pinMode(Tanque::PIN_100, INPUT);
+    if (!perfilTanqueValido || cantidadTanques != 1) Serial.println("ERROR: conflicto en el conjunto del tanque; nivel sin verificar.");
+  }
+
   ActuatorCfg oldActuators[MAX_ACTUATORS];
   int oldCount = actuatorCount;
   for (int i = 0; i < oldCount; i++) oldActuators[i] = actuators[i];
@@ -545,6 +579,8 @@ bool parseSyncJson(const String& resp) {
         S.dhtType = parseDhtType(meta);
         S.valor = NAN;
         S.raw = -1;
+        if (S.driver == "nivel_agua_fijo") S.gpio = -1;
+        else if (Tanque::ocupado(S.gpio)) S.activo = false;
 
       if (S.driver == "adc_ppm") {
         S.adcMin = jsonFloat(meta["adc_min"], 800);
@@ -582,6 +618,7 @@ bool parseSyncJson(const String& resp) {
       String codigo = a["codigo"] | "";
       int gpio = a["gpio_pin"].isNull() ? -1 : (int)a["gpio_pin"];
       bool invertido = a["invertido"] | false;
+      if (Tanque::ocupado(gpio)) gpio = -1;
 
       ActuatorCfg& A = actuators[actuatorCount];
       A.codigo = codigo;
@@ -628,6 +665,46 @@ bool parseSyncJson(const String& resp) {
     }
   }
 
+  // Un solo ACS712 de calefacción por nodo. Se rechazan pines compartidos.
+  Calefaccion::Configuracion configuracionCalef;
+  unsigned cantidadSupervisiones = 0;
+  for (JsonObject sensorJson : doc["sensores"].as<JsonArray>()) {
+    String tipoSensor = sensorJson["tipo"] | "";
+    String codigoSensor = sensorJson["codigo"] | "";
+    if (tipoSensor != "verificacion_calefaccion" && codigoSensor != "S_CONF_CALEF") continue;
+    if (!(sensorJson["activo"] | true)) continue;
+    ++cantidadSupervisiones;
+    JsonObject datos = sensorJson["meta"].as<JsonObject>();
+    // /sync entrega meta como objeto. No se acepta configuración ambigua.
+    configuracionCalef.presente = true;
+    configuracionCalef.gpio = sensorJson["gpio_pin"].isNull() ? -1 : (int)sensorJson["gpio_pin"];
+    configuracionCalef.calibrado = datos["calibrado"] | false;
+    configuracionCalef.revision = datos["revision"] | 0UL;
+    configuracionCalef.umbralEncendidoMv = jsonFloat(datos["umbral_encendido_mv"], 50);
+    configuracionCalef.umbralApagadoMv = jsonFloat(datos["umbral_apagado_mv"], 25);
+    configuracionCalef.ceroMv = jsonFloat(datos["cero_mv"], 1667);
+    configuracionCalef.ceroMinMv = jsonFloat(datos["cero_min_mv"], 1300);
+    configuracionCalef.ceroMaxMv = jsonFloat(datos["cero_max_mv"], 2000);
+    configuracionCalef.esperaMs = (uint32_t)(jsonFloat(datos["espera_seg"], 3) * 1000);
+    strlcpy(configuracionCalef.codigoSensor, codigoSensor.c_str(), sizeof(configuracionCalef.codigoSensor));
+    strlcpy(configuracionCalef.codigoActuador, datos["actuador_codigo"] | "", sizeof(configuracionCalef.codigoActuador));
+    int pin = configuracionCalef.gpio;
+    configuracionCalef.pinDisponible = (pin == 32 || pin == 33 || pin == 34 || pin == 35 || pin == 36 || pin == 39) && !Tanque::ocupado(pin);
+    for (int j = 0; j < sensorCount; ++j) {
+      if (sensors[j].codigo != codigoSensor && sensors[j].gpio == pin) configuracionCalef.pinDisponible = false;
+    }
+    bool actuadorEncontrado = false;
+    for (int j = 0; j < actuatorCount; ++j) {
+      if (actuators[j].gpio == pin) configuracionCalef.pinDisponible = false;
+      if (actuators[j].codigo == configuracionCalef.codigoActuador) actuadorEncontrado = true;
+    }
+    if (!actuadorEncontrado) configuracionCalef.pinDisponible = false;
+  }
+  if (cantidadSupervisiones > 1) configuracionCalef.pinDisponible = false;
+  Calefaccion::configurar(configuracionCalef);
+  for (int j = 0; j < actuatorCount; ++j) {
+    if (actuators[j].current >= 0) Calefaccion::registrarOrden(actuators[j].codigo, actuators[j].current == 1);
+  }
   configureDhtFromSensors();
 
   Serial.print("Configuración aplicada: sensores=");
@@ -768,6 +845,7 @@ void applyActuator(ActuatorCfg& a, bool on) {
   int electrical = a.invertido ? !logical : logical;
 
   digitalWrite(a.gpio, electrical);
+  Calefaccion::registrarOrden(a.codigo, on);
   a.current = logical;
 
   Serial.print("ACTUADOR ");
@@ -851,6 +929,12 @@ int levelFromSensorCode(const String& codigo) {
 }
 
 float currentWaterLevelPct() {
+  for (int i=0; i<sensorCount; ++i) {
+    if (sensors[i].driver == "nivel_agua_fijo") {
+      Tanque::Lectura lecturaTanque = Tanque::obtener();
+      return sensors[i].activo && lecturaTanque.valida ? lecturaTanque.nivel : NAN;
+    }
+  }
   float best = NAN;
 
   for (int i = 0; i < sensorCount; i++) {
@@ -976,6 +1060,11 @@ void startWaterFill(ActuatorCfg& a, const String& nonce, int targetPct, int time
 
   float actual = currentWaterLevelPct();
 
+  if (isnan(actual)) {
+    applyActuator(a, false);
+    sendAck(nonce, false, "nivel_agua_sin_verificar");
+    return;
+  }
   if (actual >= targetPct) {
     applyActuator(a, false);
     Serial.println("Agua omitida: nivel objetivo ya alcanzado.");
@@ -1037,7 +1126,9 @@ void serviceTimedActions() {
   if (waterFill.active) {
     float nivel = currentWaterLevelPct();
 
-    if (nivel >= waterFill.targetPct) {
+    if (isnan(nivel)) {
+      stopWaterFill(false, "nivel_agua_sin_verificar");
+    } else if (nivel >= waterFill.targetPct) {
       stopWaterFill(true, "nivel_objetivo_alcanzado");
     } else if ((long)(millis() - waterFill.deadlineMs) >= 0) {
       stopWaterFill(true, "timeout");
@@ -1210,6 +1301,11 @@ void readSensors() {
       continue;
     }
 
+    if (s.driver == "nivel_agua_fijo") {
+      Tanque::Lectura lecturaTanque = Tanque::obtener();
+      s.valor = lecturaTanque.valida ? lecturaTanque.nivel : -1;
+      continue;
+    }
     if (!validGpio(s.gpio)) {
       Serial.print("Sensor ");
       Serial.print(s.codigo);
@@ -1218,6 +1314,11 @@ void readSensors() {
       continue;
     }
 
+    if (s.driver == "acs712_ac") {
+      Calefaccion::Resultado verificacion = Calefaccion::obtenerResultado();
+      s.valor = verificacion.valida ? verificacion.estado : -1;
+      continue;
+    }
     if (s.driver == "digital" || s.driver == "digital_level") {
       s.raw = digitalRead(s.gpio);
       s.valor = (float)s.raw;
@@ -1249,7 +1350,7 @@ void readSensors() {
 }
 
 void postLecturas() {
-  DynamicJsonDocument doc(4096);
+  DynamicJsonDocument doc(6144);
   doc["uid"] = MODULO_UID;
   doc["codigo"] = MODULO_CODIGO;
   doc["fw"] = FW_VERSION;
@@ -1261,6 +1362,18 @@ void postLecturas() {
   for (int i = 0; i < sensorCount; i++) {
     SensorCfg& s = sensors[i];
 
+    Tanque::Lectura lecturaTanque;
+    if (s.driver == "nivel_agua_fijo") {
+      lecturaTanque = Tanque::obtener();
+      s.valor = lecturaTanque.valida ? lecturaTanque.nivel : -1;
+    }
+    Calefaccion::Resultado verificacion;
+    if (s.driver == "acs712_ac") {
+      verificacion = Calefaccion::obtenerResultado();
+      Calefaccion::Configuracion configuracionCalef = Calefaccion::obtenerConfiguracion();
+      if (s.codigo != configuracionCalef.codigoSensor) verificacion.valida = false;
+      s.valor = verificacion.valida ? verificacion.estado : -1;
+    }
     if (!s.activo || isnan(s.valor)) continue;
 
     JsonObject o = arr.createNestedObject();
@@ -1275,6 +1388,25 @@ void postLecturas() {
     JsonObject raw = o.createNestedObject("raw");
     raw["gpio"] = s.gpio;
     raw["driver"] = s.driver;
+    if (s.driver == "nivel_agua_fijo") {
+      o["calidad"] = lecturaTanque.valida ? "ok" : "error";
+      raw["perfil"] = "clavel_4_niveles";
+      raw["nivel_valido"] = lecturaTanque.valida;
+      raw["edad_muestra_ms"] = (uint32_t)(millis() - lecturaTanque.tomadaMs);
+    }
+    if (s.driver == "acs712_ac") {
+      o["calidad"] = verificacion.valida ? "ok" : "error";
+      raw["verificacion_valida"] = verificacion.valida;
+      raw["revision"] = verificacion.revision;
+      raw["edad_muestra_ms"] = (uint32_t)(millis() - verificacion.muestreadoMs);
+      raw["motivo"] = verificacion.motivo;
+      raw["diagnostico_local"] = verificacion.diagnostico;
+      // Solo en monitor serie y habilitado expresamente para calibración.
+      if (DEPURAR_CALIBRACION_CALEFACCION) {
+        Serial.printf("ACS712 media=%.1f mV eficaz=%.1f mV estado=%d valida=%d\n",
+          verificacion.mediaMv, verificacion.eficazMv, verificacion.estado, verificacion.valida);
+      }
+    }
 
     if (s.raw >= 0) {
       raw["adc_digital"] = s.raw;
@@ -1302,6 +1434,8 @@ void setup() {
   delay(300);
 
   analogSetAttenuation(ADC_11db);
+  Calefaccion::iniciar();
+  Tanque::iniciar();
 
   loadNonceHistory();
 

@@ -49,6 +49,12 @@ class ActuadorController extends Controller
         return view('panel.actuadores.index', compact('actuadores', 'modulos', 'modo'));
     }
 
+    public function verificacion(Actuador $actuador): JsonResponse
+    {
+        return response()->json(app(\App\Services\SupervisionCalefaccion::class)->paraActuador($actuador))
+            ->header('Cache-Control', 'no-store, private');
+    }
+
     public function create(): View
     {
         $actuador = new Actuador(['activo' => true, 'invertido' => false]);
@@ -106,6 +112,9 @@ class ActuadorController extends Controller
 
     private function validateData(Request $request, ?int $ignoreId = null): array
     {
+        if ($request->boolean('activo')) {
+            \App\Services\NivelAgua::validarPinIndividual((int) $request->input('modulo_id'), $request->filled('gpio_pin') ? (int) $request->input('gpio_pin') : null);
+        }
         return $request->validate([
             'modulo_id' => ['required', 'exists:modulos,id'],
             'codigo' => [

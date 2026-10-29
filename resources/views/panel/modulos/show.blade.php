@@ -41,9 +41,9 @@
     $temp = optional($tempSensor?->ultimaLectura)->valor ?? null;
     $hum = optional($humSensor?->ultimaLectura)->valor ?? null;
     $nh3 = optional($nh3Sensor?->ultimaLectura)->valor ?? null;
-    $agua = optional($aguaSensor?->ultimaLectura)->valor ?? null;
+    $agua = $aguaSensor?->activo ? $aguaSensor->valor_actual : null;
 
-    if ($agua === null && $nivelSensores->isNotEmpty()) {
+    if (!$aguaSensor && $nivelSensores->isNotEmpty()) {
         $agua = 0;
         foreach ($nivelSensores as $porcentaje => $sensorNivel) {
             $valorNivel = optional($sensorNivel?->ultimaLectura)->valor ?? $sensorNivel?->valor_actual;
@@ -451,6 +451,12 @@
                     <button class="quick-btn disabled" disabled>{{ $textoBloqueo((bool) $actCalef) }}</button>
                 @endif
             </div>
+
+            @if($actCalef)
+                <div class="quick-verificacion">
+                    @include('panel._partials.verificacion-calefaccion', ['actuadorVerificado' => $actCalef])
+                </div>
+            @endif
 
             <div class="mode-box">
                 <span>Modo de funcionamiento</span>
