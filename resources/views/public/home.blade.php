@@ -266,7 +266,7 @@
                             </li>
                             <li>
                                 <div class="icon"><span class="icon-tick"></span></div>
-                                <div class="text"><p>Infraestructura digital con API REST, backend e históricos de operación.</p></div>
+                                <div class="text"><p>Infraestructura digital hibrida, backend e históricos de operación.</p></div>
                             </li>
                         </ul>
                     </div>
@@ -388,7 +388,7 @@
                             <li class="healthy-food-one__single">
                                 <div class="healthy-food-one__content">
                                     <div class="healthy-food-one__icon"><span class="fas fa-server"></span></div>
-                                    <p class="healthy-food-one__title">API REST, backend y panel de monitoreo</p>
+                                    <p class="healthy-food-one__title">Backend y panel de monitoreo</p>
                                 </div>
                             </li>
                         </ul>
@@ -410,7 +410,7 @@
             </div>
             <div class="row g-4">
                 <div class="col-md-3"><div class="metric-box"><h3>01</h3><p>Adquisición de datos sensoriales</p></div></div>
-                <div class="col-md-3"><div class="metric-box"><h3>02</h3><p>Comunicación inalámbrica y API REST</p></div></div>
+                <div class="col-md-3"><div class="metric-box"><h3>02</h3><p>Comunicación inalámbrica</p></div></div>
                 <div class="col-md-3"><div class="metric-box"><h3>03</h3><p>Control automático de actuadores</p></div></div>
                 <div class="col-md-3"><div class="metric-box"><h3>04</h3><p>Backend histórico y monitoreo remoto</p></div></div>
             </div>

@@ -1,4 +1,3 @@
-
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <espMqttClient.h>
@@ -10,13 +9,13 @@
 #include "SupervisionCalefaccion.h"
 #include "NivelAgua.h"
 
-const char* NOMBRE_RED_WIFI = "TU_WIFI";
-const char* CLAVE_RED_WIFI = "TU_CLAVE_WIFI";
+const char* NOMBRE_RED_WIFI = "REDENTOR";
+const char* CLAVE_RED_WIFI = "JoSs.0926.";
 
 const char* URL_BASE_SERVIDOR      = "https://claveles.gytelcom.com";
 const char* MODULO_UID    = "ESP32-MOD-001";
 const char* MODULO_CODIGO = "MOD-001";
-const char* CLAVE_DISPOSITIVO    = "TU_CLAVE_DISPOSITIVO_REGENERADA";
+const char* CLAVE_DISPOSITIVO    = "mc_i1hw2WhSzK4lRJxWhlb1e92PUqkf3KMirPoYVoMRSat6MH8F4avLa4sZ";
 const bool DEPURAR_CALIBRACION_CALEFACCION = false;
 const char* VERSION_FIRMWARE    = "mecacuy-esp32-hibrido-2.3.0";
 
@@ -24,7 +23,7 @@ const bool MQTT_HABILITADO = true;
 const char* SERVIDOR_MQTT = "ddb1331f.ala.eu-central-1.emqxsl.com";
 const uint16_t PUERTO_MQTT = 8883;
 const char* USUARIO_MQTT = "esp32_mod001";
-const char* CLAVE_MQTT = "CAMBIAR_CLAVE_MQTT";
+const char* CLAVE_MQTT = "Esp_32_Mecacuy";
 const char* PREFIJO_TEMAS_MQTT = "mecacuy";
 
 String URL_SINCRONIZACION     = String(URL_BASE_SERVIDOR) + "/api/iot/v1/sync";

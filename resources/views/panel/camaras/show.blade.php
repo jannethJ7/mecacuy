@@ -53,12 +53,14 @@
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.18"></script>
+<script src="{{ asset('dashboard/assets/js/mecacuy/camera-live.js') }}?v={{ filemtime(public_path('dashboard/assets/js/mecacuy/camera-live.js')) }}"></script>
 <script>
 (() => {
     const source = @json($camara->hls_url);
     const video = document.getElementById('camera-player');
     const status = document.getElementById('camera-status');
     let hls = null;
+    let stopLiveSync = () => {};
 
     const setStatus = (text, ok = false) => {
         status.textContent = text;
@@ -66,10 +68,13 @@
     };
 
     const connect = () => {
+        stopLiveSync();
+        stopLiveSync = () => {};
         if (hls) {
             hls.destroy();
             hls = null;
         }
+        video.pause();
         video.removeAttribute('src');
         video.load();
 
@@ -82,18 +87,14 @@
 
         if (video.canPlayType('application/vnd.apple.mpegurl')) {
             video.src = source;
+            stopLiveSync = window.MecaCuyCameraLive.watch(video);
             video.play().catch(() => {});
             return;
         }
 
         if (window.Hls && Hls.isSupported()) {
-            hls = new Hls({
-                liveSyncDurationCount: 2,
-                liveMaxLatencyDurationCount: 5,
-                maxLiveSyncPlaybackRate: 1.5,
-                enableWorker: true,
-                backBufferLength: 20,
-            });
+            hls = new Hls({ ...window.MecaCuyCameraLive.config });
+            stopLiveSync = window.MecaCuyCameraLive.watch(video, hls);
 
             hls.loadSource(source);
             hls.attachMedia(video);
@@ -108,7 +109,9 @@
                     hls.recoverMediaError();
                 } else {
                     setStatus('Error de stream');
+                    stopLiveSync();
                     hls.destroy();
+                    hls = null;
                 }
             });
             return;
@@ -123,6 +126,10 @@
     video.addEventListener('error', () => setStatus('Error de reproducción'));
     document.getElementById('camera-reload').addEventListener('click', connect);
 
+    window.addEventListener('pagehide', () => {
+        stopLiveSync();
+        if (hls) hls.destroy();
+    });
     connect();
 })();
 </script>

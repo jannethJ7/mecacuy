@@ -7,6 +7,7 @@
     const placeholder = card.querySelector('[data-camera-placeholder]');
     const message = card.querySelector('[data-camera-message]');
     let hls, timer;
+    let stopLiveSync = () => {};
 
     function state(text, live = false) {
         status.textContent = text;
@@ -16,6 +17,8 @@
     }
 
     function stop() {
+        stopLiveSync();
+        stopLiveSync = () => {};
         clearTimeout(timer);
         if (hls) { hls.destroy(); hls = null; }
         video.pause();
@@ -43,9 +46,11 @@
         }, 15000);
         if (video.canPlayType('application/vnd.apple.mpegurl')) {
             video.src = source;
+            stopLiveSync = window.MecaCuyCameraLive.watch(video);
             video.play().catch(() => {});
         } else if (window.Hls?.isSupported()) {
-            hls = new window.Hls();
+            hls = new window.Hls({ ...window.MecaCuyCameraLive.config });
+            stopLiveSync = window.MecaCuyCameraLive.watch(video, hls);
             hls.on(window.Hls.Events.ERROR, (_event, data) => {
                 if (data.fatal) {
                     stop();

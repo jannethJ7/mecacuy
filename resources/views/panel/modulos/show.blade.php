@@ -624,5 +624,6 @@ document.addEventListener('change', async function (event) {
 
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.18"></script>
+<script src="{{ asset('dashboard/assets/js/mecacuy/camera-live.js') }}?v={{ filemtime(public_path('dashboard/assets/js/mecacuy/camera-live.js')) }}"></script>
 <script src="{{ asset('dashboard/assets/js/mecacuy/module-camera.js') }}?v={{ filemtime(public_path('dashboard/assets/js/mecacuy/module-camera.js')) }}"></script>
 @endpush
