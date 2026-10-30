@@ -8,6 +8,7 @@
 #include <math.h>
 #include "SupervisionCalefaccion.h"
 #include "NivelAgua.h"
+#include "DosificadorMotor.h"
 
 const char* NOMBRE_RED_WIFI = "REDENTOR";
 const char* CLAVE_RED_WIFI = "JoSs.0926.";
@@ -17,7 +18,7 @@ const char* MODULO_UID    = "ESP32-MOD-001";
 const char* MODULO_CODIGO = "MOD-001";
 const char* CLAVE_DISPOSITIVO    = "mc_i1hw2WhSzK4lRJxWhlb1e92PUqkf3KMirPoYVoMRSat6MH8F4avLa4sZ";
 const bool DEPURAR_CALIBRACION_CALEFACCION = false;
-const char* VERSION_FIRMWARE    = "mecacuy-esp32-hibrido-2.3.0";
+const char* VERSION_FIRMWARE    = "mecacuy-esp32-hibrido-2.3.1";
 
 const bool MQTT_HABILITADO = true;
 const char* SERVIDOR_MQTT = "ddb1331f.ala.eu-central-1.emqxsl.com";
@@ -139,8 +140,6 @@ struct EstadoAlimentacion {
   String identificadorComando = "";
   String codigoActuadorEnCurso = "";
   unsigned long vencimientoMs = 0;
-  unsigned long ultimoPulsoUs = 0;
-  bool nivelPulso = false;
   bool modoMotorPaso = false;
 };
 
@@ -156,6 +155,7 @@ EstadoAlimentacion accionAlimentacion;
 EstadoLlenadoAgua llenadoAgua;
 
 void ejecutarComando(JsonObject comando);
+void detenerAlimentacion(bool notificar);
 
 const unsigned long SEMIPERIODO_MOTOR_PASO_US = 3000;
 
@@ -528,6 +528,26 @@ bool interpretarSincronizacionJson(const String& respuestaServidor) {
     if (!perfilTanqueValido || cantidadTanques != 1) Serial.println("ERROR: conflicto en el conjunto del tanque; nivel sin verificar.");
   }
 
+  // Stop before replacing the configuration of an active feed output.
+  if (accionAlimentacion.enCurso && accionAlimentacion.modoMotorPaso) {
+    bool cambioMotor = false;
+    for (int i = 0; i < cantidadActuadores; ++i) {
+      const ConfiguracionActuador& previo = actuadores[i];
+      if (previo.codigo != accionAlimentacion.codigoActuadorEnCurso &&
+          previo.codigo != "D_ALIMENTO_EN" && previo.codigo != "D_ALIMENTO_DIR") continue;
+      bool coincide = false;
+      for (JsonObject nuevo : documento["actuadores"].as<JsonArray>()) {
+        if (previo.codigo != String(nuevo["codigo"] | "")) continue;
+        int pin = nuevo["gpio_pin"].isNull() ? -1 : (int)nuevo["gpio_pin"];
+        coincide = pin == previo.gpio && (nuevo["invertido"] | false) == previo.invertido &&
+                   String(nuevo["tipo"] | "") == previo.tipo;
+        break;
+      }
+      if (!coincide) cambioMotor = true;
+    }
+    if (cambioMotor) detenerAlimentacion(false);
+  }
+
   ConfiguracionActuador actuadoresAnteriores[MAX_ACTUADORES];
   int cantidadAnterior = cantidadActuadores;
   for (int indice = 0; indice < cantidadAnterior; indice++) actuadoresAnteriores[indice] = actuadores[indice];
@@ -633,7 +653,8 @@ bool interpretarSincronizacionJson(const String& respuestaServidor) {
       }
 
       if (admiteSalida(A.gpio)) {
-        pinMode(A.gpio, OUTPUT);
+        // pinMode() would detach the active LEDC waveform on Arduino-ESP32 3.x.
+        if (!DosificadorMotor::ocupaPin(A.gpio)) pinMode(A.gpio, OUTPUT);
 
 
         if (A.estadoActual == -1) {
@@ -976,6 +997,7 @@ bool esActuadorAgua(const ConfiguracionActuador& a) {
 
 void iniciarAlimentacion(ConfiguracionActuador& a, const String& identificadorComando, int duracionSeg, bool temporizado = true) {
   duracionSeg = constrain(duracionSeg, 1, 300);
+  if (accionAlimentacion.enCurso) detenerAlimentacion(false);
 
   accionAlimentacion.enCurso = true;
   accionAlimentacion.temporizado = temporizado;
@@ -988,8 +1010,6 @@ void iniciarAlimentacion(ConfiguracionActuador& a, const String& identificadorCo
     accionAlimentacion.vencimientoMs = 0;
   }
 
-  accionAlimentacion.ultimoPulsoUs = micros();
-  accionAlimentacion.nivelPulso = false;
   accionAlimentacion.modoMotorPaso = convertirMinusculas(a.tipo).indexOf("stepper") >= 0 ||
                            convertirMinusculas(a.codigo).indexOf("step") >= 0 ||
                            convertirMinusculas(a.tipo).indexOf("dosificador") >= 0;
@@ -1002,8 +1022,17 @@ void iniciarAlimentacion(ConfiguracionActuador& a, const String& identificadorCo
   if (salidaHabilitacion && admiteSalida(salidaHabilitacion->gpio)) aplicarEstadoActuador(*salidaHabilitacion, true);
 
   if (accionAlimentacion.modoMotorPaso) {
-    pinMode(a.gpio, OUTPUT);
-    digitalWrite(a.gpio, LOW);
+    int pinEn = salidaHabilitacion && admiteSalida(salidaHabilitacion->gpio) ? salidaHabilitacion->gpio : -1;
+    int enApagado = salidaHabilitacion && salidaHabilitacion->invertido ? HIGH : LOW;
+    if (!DosificadorMotor::iniciar(a.gpio, pinEn, enApagado,
+          SEMIPERIODO_MOTOR_PASO_US, duracionSeg, temporizado)) {
+      accionAlimentacion.enCurso = false;
+      aplicarEstadoActuador(a, false);
+      if (salidaHabilitacion) aplicarEstadoActuador(*salidaHabilitacion, false);
+      enviarConfirmacion(identificadorComando, false, "temporizador_dosificador_no_disponible");
+      return;
+    }
+    if (temporizado) accionAlimentacion.vencimientoMs = millis() + (unsigned long)duracionSeg * 1000UL;
     a.estadoActual = 1;
   } else {
     aplicarEstadoActuador(a, true);
@@ -1022,6 +1051,7 @@ void iniciarAlimentacion(ConfiguracionActuador& a, const String& identificadorCo
 
 void detenerAlimentacion(bool notificar = true) {
   if (!accionAlimentacion.enCurso) return;
+  DosificadorMotor::detener();
 
   ConfiguracionActuador* a = buscarActuador(accionAlimentacion.codigoActuadorEnCurso);
 
@@ -1106,14 +1136,9 @@ void atenderAccionesEnCurso() {
       detenerAlimentacion(true);
     } else if (accionAlimentacion.temporizado && (long)(millis() - accionAlimentacion.vencimientoMs) >= 0) {
       detenerAlimentacion(true);
-    } else if (accionAlimentacion.modoMotorPaso) {
-      unsigned long ahoraUs = micros();
-
-      if (ahoraUs - accionAlimentacion.ultimoPulsoUs >= SEMIPERIODO_MOTOR_PASO_US) {
-        accionAlimentacion.ultimoPulsoUs = ahoraUs;
-        accionAlimentacion.nivelPulso = !accionAlimentacion.nivelPulso;
-        digitalWrite(a->gpio, accionAlimentacion.nivelPulso ? HIGH : LOW);
-      }
+    } else if (accionAlimentacion.modoMotorPaso && DosificadorMotor::vencido()) {
+      // STEP and EN have already stopped; report the result outside the timer task.
+      detenerAlimentacion(true);
     }
   }
   if (llenadoAgua.enCurso) {
@@ -1424,6 +1449,7 @@ void enviarLecturas() {
 
 void setup() {
   Serial.begin(115200);
+  if (!DosificadorMotor::preparar()) Serial.println("ERROR: temporizador del dosificador no disponible; motor bloqueado.");
   delay(300);
 
   analogSetAttenuation(ADC_11db);

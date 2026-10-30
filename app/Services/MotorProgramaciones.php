@@ -127,6 +127,18 @@ class MotorProgramaciones
 
     private function evaluarInicio(Programacion $programacion, Carbon $momento): array
     {
+        // /sync, scheduler and the panel can evaluate the same slot concurrently.
+        return DB::transaction(function () use ($programacion, $momento) {
+            $actual = Programacion::query()->lockForUpdate()->find($programacion->id);
+            if (!$actual || !$actual->activo) {
+                return $this->omitida($programacion, 'programacion_inactiva');
+            }
+            return $this->evaluarInicioBloqueado($actual, $momento);
+        }, 3);
+    }
+
+    private function evaluarInicioBloqueado(Programacion $programacion, Carbon $momento): array
+    {
         $modulo = $programacion->modulo;
         $actuador = $programacion->actuador;
 
@@ -173,7 +185,15 @@ class MotorProgramaciones
             ->where('inicio_en', $inicioProgramado)
             ->exists();
 
-        if ($yaEjecutada) {
+        // Older databases may already have a start timestamp changed by ON UPDATE.
+        // The original slot is also retained in the command payload.
+        $comandoExistente = ComandoIot::query()
+            ->where('payload->programacion_id', $programacion->id)
+            ->where('payload->fase', 'programacion_inicio')
+            ->where('payload->inicio_programado', $inicioProgramado)
+            ->exists();
+
+        if ($yaEjecutada || $comandoExistente) {
             return $this->omitida($programacion, 'programacion_ya_ejecutada_en_esta_hora');
         }
 
@@ -258,56 +278,47 @@ class MotorProgramaciones
             'omitidas' => [],
         ];
 
-        foreach ($query->get() as $ejecucion) {
-            $programacion = $ejecucion->programacion;
-            $actuador = $programacion?->actuador;
-            $modulo = $programacion?->modulo;
+        foreach ($query->get() as $pendiente) {
+            $accion = DB::transaction(function () use ($pendiente, $momento) {
+                $ejecucion = EjecucionProgramacion::query()->lockForUpdate()->find($pendiente->id);
+                if (!$ejecucion || $ejecucion->fin_en !== null || $ejecucion->estado !== 'ok') return null;
 
-            if (!$programacion || !$actuador || !$modulo) {
-                $ejecucion->update([
-                    'estado' => 'fallido',
-                    'fin_en' => now(),
-                    'nota' => 'No se pudo finalizar: programación, módulo o actuador no encontrado.',
-                ]);
-                $resultado['omitidas'][] = [
-                    'ejecucion_id' => $ejecucion->id,
-                    'motivo' => 'programacion_modulo_o_actuador_no_encontrado',
-                    'omitida' => true,
-                ];
-                continue;
-            }
+                $programacion = $ejecucion->programacion;
+                $actuador = $programacion?->actuador;
+                $modulo = $programacion?->modulo;
+                $inicioRaw = $ejecucion->getRawOriginal('inicio_en');
 
-            $zonaHoraria = $this->zonaHoraria($modulo);
-            $inicioRaw = $ejecucion->getRawOriginal('inicio_en') ?: $ejecucion->inicio_en;
-            $inicioLocal = Carbon::parse($inicioRaw, $zonaHoraria);
-            $finLocal = $inicioLocal->copy()->addSeconds((int) $programacion->duracion_seg);
-            $ahoraLocal = $momento->copy()->timezone($zonaHoraria);
+                if (!$programacion || !$actuador || !$modulo) {
+                    $ejecucion->newQuery()->whereKey($ejecucion->id)->update([
+                        'inicio_en' => $inicioRaw,
+                        'estado' => 'fallido',
+                        'fin_en' => $momento->toDateTimeString(),
+                        'nota' => 'No se pudo finalizar: programación, módulo o actuador no encontrado.',
+                    ]);
+                    return ['ejecucion_id' => $ejecucion->id,
+                        'motivo' => 'programacion_modulo_o_actuador_no_encontrado', 'omitida' => true];
+                }
 
-            if ($ahoraLocal->lessThan($finLocal)) {
-                continue;
-            }
+                $zonaHoraria = $this->zonaHoraria($modulo);
+                $inicioRealRaw = $ejecucion->getRawOriginal('created_at');
+                $inicioReal = $inicioRealRaw
+                    ? Carbon::parse($inicioRealRaw, config('app.timezone'))->timezone($zonaHoraria)
+                    : Carbon::parse($inicioRaw, $zonaHoraria);
+                // Reserve the configured duration from command creation, not the old slot.
+                $finLocal = $inicioReal->copy()->addSeconds((int) $programacion->duracion_seg);
+                if ($momento->copy()->timezone($zonaHoraria)->lessThan($finLocal)) return null;
 
-            $estadoActual = $actuador->estado_deseado;
-            $estadoApagado = $this->estadoApagado($programacion);
+                $estadoActual = $actuador->estado_deseado;
+                $estadoApagado = $this->estadoApagado($programacion);
+                $comandoId = $this->crearComando($programacion, $actuador, $estadoApagado,
+                    'programacion_fin', ['ejecucion_id' => $ejecucion->id,
+                        'fin_programado' => $finLocal->toDateTimeString()]);
 
-            DB::transaction(function () use ($ejecucion, $programacion, $actuador, $estadoActual, $estadoApagado, $finLocal) {
-                $comandoId = $this->crearComando(
-                    $programacion,
-                    $actuador,
-                    $estadoApagado,
-                    'programacion_fin',
-                    [
-                        'ejecucion_id' => $ejecucion->id,
-                        'fin_programado' => $finLocal->toDateTimeString(),
-                    ]
-                );
-
-                $actuador->update([
-                    'estado_deseado' => $estadoApagado,
-                    'cambiado_en' => now(),
-                ]);
-
-                $ejecucion->update([
+                $actuador->update(['estado_deseado' => $estadoApagado, 'cambiado_en' => now()]);
+                // Query update deliberately includes inicio_en, even when unchanged.
+                // Model::update() would omit an unchanged value and trigger legacy ON UPDATE.
+                $ejecucion->newQuery()->whereKey($ejecucion->id)->update([
+                    'inicio_en' => $inicioRaw,
                     'fin_en' => $finLocal->toDateTimeString(),
                     'estado' => 'ok',
                     'nota' => 'Finalización programada: comando de apagado creado.',
@@ -316,30 +327,26 @@ class MotorProgramaciones
                 Actuacion::create([
                     'modulo_id' => $programacion->modulo_id,
                     'actuador_id' => $programacion->actuador_id,
-                    'origen' => 'programacion',
-                    'estado_anterior' => $estadoActual,
+                    'origen' => 'programacion', 'estado_anterior' => $estadoActual,
                     'estado_nuevo' => $estadoApagado,
-                    'motivo' => [
-                        'programacion_id' => $programacion->id,
-                        'ejecucion_id' => $ejecucion->id,
-                        'comando_id' => $comandoId,
-                        'fase' => 'fin',
-                        'nombre' => $programacion->nombre,
-                    ],
+                    'motivo' => ['programacion_id' => $programacion->id,
+                        'ejecucion_id' => $ejecucion->id, 'comando_id' => $comandoId,
+                        'fase' => 'fin', 'nombre' => $programacion->nombre],
                     'ejecutado_en' => now(),
                 ]);
-            });
 
-            $resultado['finalizaciones_creadas']++;
-            $resultado['acciones'][] = [
-                'programacion_id' => $programacion->id,
-                'programacion' => $programacion->nombre,
-                'actuador' => $actuador->codigo,
-                'ejecucion_id' => $ejecucion->id,
-                'estado_enviado' => $estadoApagado,
-                'finalizacion_creada' => true,
-                'motivo' => 'comando_de_apagado_generado_por_programacion',
-            ];
+                return ['programacion_id' => $programacion->id, 'programacion' => $programacion->nombre,
+                    'actuador' => $actuador->codigo, 'ejecucion_id' => $ejecucion->id,
+                    'estado_enviado' => $estadoApagado, 'finalizacion_creada' => true,
+                    'motivo' => 'comando_de_apagado_generado_por_programacion'];
+            }, 3);
+
+            if (!$accion) continue;
+            if (!empty($accion['omitida'])) $resultado['omitidas'][] = $accion;
+            else {
+                $resultado['finalizaciones_creadas']++;
+                $resultado['acciones'][] = $accion;
+            }
         }
 
         return $resultado;
